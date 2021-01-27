@@ -89,8 +89,8 @@ RHACM_BRANCH=${RHACM_BRANCH:-$(echo "${RHACM_VERSION}" | grep -o "[[:digit:]]\+\
 BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-9]\.[0-9]-" | sort -uV | tail -1 | grep -o "[0-9]\.[0-9]")}
 VERSION_NUM=${RHACM_VERSION:=""}
 PIPELINE_PHASE=${PIPELINE_PHASE:-"edge"}
-echo "* Updating repo and switching to the ${BRANCH}-${PIPELINE_PHASE} branch"
-git checkout ${BRANCH}-${PIPELINE_PHASE}
+echo "* Updating repo and switching to the ${BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
+git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
 git pull &>/dev/null
 MANIFEST_TAG=$(ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* | grep "${VERSION_NUM}" | tail -n 1 | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}.*")
 SNAPSHOT_TAG=$(echo ${MANIFEST_TAG} | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}")
@@ -104,8 +104,8 @@ echo "* Using RHACM snapshot: ${VERSION_NUM}-SNAPSHOT-${SNAPSHOT_TAG}"
 # Deploy RHACM (defaults to latest edge snapshot)
 echo "##### Deploying Red Hat Advanced Cluster Management ..."
 cd ${RHACM_DEPLOY_PATH}
-echo "* Updating repo and switching to the master branch"
-git checkout master
+echo "* Updating repo and switching to the master branch (if this exits, check the state of the local Deploy repo)"
+git checkout master &>/dev/null
 git pull &>/dev/null
 echo "${VERSION_NUM}-SNAPSHOT-${SNAPSHOT_TAG}" > ${RHACM_DEPLOY_PATH}/snapshot.ver
 ./start.sh --silent
@@ -136,7 +136,7 @@ if [[ -n ${AUTH_REDIRECT_PATHS} ]]; then
 			fi
 		done
 		oc patch oauthclient multicloudingress --patch "{\"redirectURIs\":[${REDIRECT_PATH_LIST}]}"
-		echo "* Ingress patched with: ${REDIRECT_PATH_LIST}"
+		echo "* Ingress patched with: "${REDIRECT_PATH_LIST}
 	fi
 fi
 
