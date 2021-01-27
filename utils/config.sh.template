@@ -1,0 +1,27 @@
+#! /bin/bash
+
+# Copy this template and rename it to config.sh in the same /utils directory
+# It was implemented as a bash script in case you'd like to use your own logic or variables to further customize the variable content
+# All variables below EXCEPT for the Git paths are optional--Lifeguard will prompt you for anything not provided
+# Setting CLUSTERCLAIM_END_TIME is highly recommended--it will implement custom logic in this script to delete the cluster at the given time
+
+# Path to Git directories
+export LIFEGUARD_PATH= # Path to local Lifeguard repo
+export RHACM_PIPELINE_PATH= # Path to local Pipeline repo
+export RHACM_DEPLOY_PATH= # Path to local Deploy repo
+
+# Paths for allowable ingress auth redirects from localhost (for development) -- defaults to none; used in template "https://localhost:3000/multicloud" + ${PATH} + "auth/callback"
+export AUTH_REDIRECT_PATHS=("/" "/policies/" "/header/" "/topology/" "/applications/" "/clusters/" "/overview/" "/bare-metal-assets/" "/search/")
+
+# ClusterClaim exports
+export CLUSTERPOOL_TARGET_NAMESPACE= # Your namespace on the collective cluster
+export CLUSTERPOOL_NAME= # Name of the clusterpool to use
+export CLUSTERCLAIM_NAME= # Name of the clusterclaim to create
+export CLUSTERCLAIM_GROUP_NAME= # RBAC group in cluster (also used for labeling--should match GitHub team)
+export CLUSTERCLAIM_END_TIME= # Integer hour in 24h clock at which to expire the cluster
+export CLUSTERCLAIM_LIFETIME= # If CLUSTERCLAIM_END_TIME is not set, you can also set a lifetime here of the format 1h2m3s, omitting units as desired (or set it to "false" for no lifetime)
+
+# RHACM configuration - defaults to latest available edge snapshot
+export RHACM_BRANCH= # Override branch -- must be a two-part version like 1.2. This will get the latest version of the branch specified.
+export RHACM_VERSION= # Override version -- must be three-part version like 1.2.3
+export PIPELINE_PHASE= # Override release phase -- defaults to edge (usually either edge or stable are available to install from quay--not integration)
