@@ -91,22 +91,25 @@ fi
 
 # Get snapshot
 echo "##### Getting snapshot for RHACM (defaults to latest version -- override version with RHACM_VERSION) ..."
+cd ${RHACM_PIPELINE_PATH}
+git pull &>/dev/null
+RHACM_BRANCH=${RHACM_BRANCH:-$(echo "${RHACM_VERSION}" | grep -o "[[:digit:]]\+\.[[:digit:]]\+" || true)} # Create Pipeline branch from version, if specified
+BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-9]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
+
+# Get latest downstream snapshot from Quay if DOWNSTREAM is set to "true"
 if [[ ${DOWNSTREAM} == "true" ]]; then
-  # Get latest downstream snapshot from Quay
   echo "* Getting downstream snapshot"
-  RHACM_SNAPSHOT=$(curl -s https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/ | jq -r '.tags[].name' | grep -v "nonesuch\|-$" | grep -F "${RHACM_VERSION}" | grep -F "${RHACM_BRANCH}"| head -n 1)
+  RHACM_SNAPSHOT=$(curl -s https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/ | jq -r '.tags[].name' | grep -v "nonesuch\|-$" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
   if [[ -z ${RHACM_SNAPSHOT} ]]; then
-    echo "^^^^^ Error querying snapshot list--nothing was returned. Please check your network connection and any conflicts in your exports:"
+    echo "^^^^^ Error querying snapshot list--nothing was returned. Please check https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/, your network connection, and any conflicts in your exports:"
     echo "^^^^^ Query used: RHACM_VERSION: '${RHACM_VERSION}' RHACM_BRANCH '${RHACM_BRANCH}'"
     exit 1
   fi
+
+# If DOWNSTREAM is not "true", get snapshot from pipeline repo (defaults to latest edge version)
 else
-  # Get snapshot from pipeline repo (defaults to latest edge version)
   echo "* Getting upstream snapshot"
   cd ${RHACM_PIPELINE_PATH}
-  git pull &>/dev/null
-  RHACM_BRANCH=${RHACM_BRANCH:-$(echo "${RHACM_VERSION}" | grep -o "[[:digit:]]\+\.[[:digit:]]\+" || true)} # Create Pipeline branch from version, if specified
-  BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-9]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
   VERSION_NUM=${RHACM_VERSION:=""}
   PIPELINE_PHASE=${PIPELINE_PHASE:-"edge"}
   echo "* Updating repo and switching to the ${BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
