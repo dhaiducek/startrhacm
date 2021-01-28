@@ -69,7 +69,12 @@ if [[ -n ${CLUSTERCLAIM_END_TIME} ]]; then
 fi
 ./apply.sh
 echo "##### Setting KUBECONFIG and checking cluster access ..."
-export KUBECONFIG=$(ls -dt1 ${CLAIM_DIR}/*/kubeconfig | head -n 1)
+# If we have a ClusterClaim name, use that to get the kubeconfig, otherwise just get the most recently modified (which is most likely the one we need)
+if [[ -n ${CLUSTERCLAIM_NAME} ]]; then
+	export KUBECONFIG=$(ls ${CLAIM_DIR}/${CLUSTERCLAIM_NAME}/kubeconfig)
+else
+	export KUBECONFIG=$(ls -dt1 ${CLAIM_DIR}/*/kubeconfig | head -n 1)
+fi
 ATTEMPTS=0
 MAX_ATTEMPTS=15
 while (! oc status) && (( ${ATTEMPTS} < ${MAX_ATTEMPTS} )); do
