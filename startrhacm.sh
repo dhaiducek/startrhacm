@@ -96,11 +96,11 @@ else
 fi
 ATTEMPTS=0
 MAX_ATTEMPTS=15
-while (! oc status) && (( ${ATTEMPTS} < ${MAX_ATTEMPTS} )); do
-  printlog error "Error logging in to cluster. Trying again...(Attempt $((++ATTEMPTS))/${MAX_ATTEMPTS})"
+while (! oc status) && [[ "${ATTEMPTS}" != "${MAX_ATTEMPTS}" ]]; do
+  printlog error "Error logging in to cluster. Trying again...(Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
   sleep 20
 done
-if (( ${ATTEMPTS} == 15 )); then
+if [[ "${ATTEMPTS}" == "${MAX_ATTEMPTS}" ]]; then
   printlog error "Failed to login to cluster. Exiting."
   exit 1
 fi
@@ -172,14 +172,25 @@ if [[ "${DOWNSTREAM}" == "true" ]]; then
     NODES=$(oc get nodes | grep "NotReady\|SchedulingDisabled" || true)
     if [[ -n "${NODES}" ]]; then
       echo "${NODES}"
-      printlog error "Waiting another 1m for node update (Attempt $((++ATTEMPTS))/${MAX_ATTEMPTS})"
+      printlog error "Waiting another 1m for node update (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
       sleep 60
     else
       READY="true"
     fi
   done
 fi
-./start.sh --silent
+# Attempt the RHACM deploy twice in case of an unexpected failure or timeout
+ATTEMPTS=0
+MAX_ATTEMPTS=1
+while (! ./start.sh --silent) && [[ "${ATTEMPTS}" != "${MAX_ATTEMPTS}" ]]; do
+  printlog error "RHACM deployment failed. Trying again in 30s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
+  sleep 30
+done
+if [[ "${ATTEMPTS}" == "${MAX_ATTEMPTS}" ]]; then
+  printlog error "RHACM deployment failed. If it appears to be intermittent, re-run the startrhacm script against the same claim to try the RHACM deployment again."
+  printlog error "Otherwise, either manually uninstall RHACM or delete the claim, and then try again."
+  exit 1
+fi
 
 # Set CLI to point to RHACM namespace
 printlog title "Setting oc CLI context to open-cluster-management namespace"
@@ -190,11 +201,11 @@ if [[ -n "${AUTH_REDIRECT_PATHS}" ]]; then
   printlog title "Waiting for ingress to be running to configure localhost connections"
   ATTEMPTS=0
   MAX_ATTEMPTS=15
-  while (! oc get oauthclient multicloudingress); do
-    printlog error "Error finding ingress. Trying again...(Attempt $((++ATTEMPTS))/${MAX_ATTEMPTS})"
+  while (! oc get oauthclient multicloudingress) && [[ "${ATTEMPTS}" != "${MAX_ATTEMPTS}" ]]; do
+    printlog error "Error finding ingress. Trying again...(Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
     sleep 20
   done
-  if (( ${ATTEMPTS} == 15 )); then
+  if [[ "${ATTEMPTS}" == "${MAX_ATTEMPTS}" ]]; then
     printlog error "Ingress not patched. Please check your RHACM deployment."
   else
     REDIRECT_PATH_LIST=""
@@ -211,6 +222,6 @@ if [[ -n "${AUTH_REDIRECT_PATHS}" ]]; then
   fi
 fi
 
-printlog title "Information for claimed RHACM cluster (note that RHACM installation may currently be completing final installation steps):"
+printlog title "Information for claimed RHACM cluster (Note: RHACM may be completing final installation steps):"
 printlog info "Set KUBECONFIG:\n  export KUBECONFIG=$(echo ${KUBECONFIG})"
 printlog info "Lifeguard ClusterClaim directory (containing cluster details and more):\n  cd $(echo ${KUBECONFIG} | sed 's/kubeconfig//')"
