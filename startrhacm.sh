@@ -96,11 +96,14 @@ else
 fi
 ATTEMPTS=0
 MAX_ATTEMPTS=15
-while (! oc status) && [[ "${ATTEMPTS}" != "${MAX_ATTEMPTS}" ]]; do
-  printlog error "Error logging in to cluster. Trying again...(Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
-  sleep 20
+INTERVAL=20
+FAILED="false"
+while (! oc status) && FAILED="true" && (( ATTEMPTS != MAX_ATTEMPTS )); do
+  printlog error "Error logging in to cluster. Trying again in ${INTERVAL}s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
+  sleep ${INTERVAL}
+  FAILED="false"
 done
-if [[ "${ATTEMPTS}" == "${MAX_ATTEMPTS}" ]]; then
+if [[ "${FAILED}" == "true" ]]; then
   printlog error "Failed to login to cluster. Exiting."
   exit 1
 fi
@@ -153,6 +156,7 @@ if (! ls ${RHACM_DEPLOY_PATH}/prereqs/pull-secret.yaml &>/dev/null); then
   printlog error "Error finding pull secret in deploy repo. Please consult https://github.com/open-cluster-management/deploy on how to set it up."
   exit 1
 fi
+# Deploy necessary downstream resources if required
 if [[ "${DOWNSTREAM}" == "true" ]]; then
   printlog info "Setting up for downstream deployment"
   export COMPOSITE_BUNDLE=true
@@ -164,16 +168,18 @@ if [[ "${DOWNSTREAM}" == "true" ]]; then
   oc set data secret/pull-secret -n openshift-config --from-literal=.dockerconfigjson="$(jq -s '.[0] * .[1]' <<<${FULL_TOKEN})"
   printlog info "Applying downstream resources (including ImageContentSourcePolicy to point to downstream repo)"
   oc apply -k ${RHACM_DEPLOY_PATH}/addons/downstream
+  # Wait for cluster node to update with ICSP--if not all the nodes are up after this, we'll continue anyway
   printlog info "Waiting up to 10 minutes for cluster nodes to update with ImageContentSourcePolicy change"
   READY="false"
   ATTEMPTS=0
   MAX_ATTEMPTS=10
-  while [[ "${READY}" == "false" && "${ATTEMPTS}" != "${MAX_ATTEMPTS}" ]]; do
+  INTERVAL=60
+  while [[ "${READY}" == "false" ]] && (( ATTEMPTS != MAX_ATTEMPTS )); do
     NODES=$(oc get nodes | grep "NotReady\|SchedulingDisabled" || true)
     if [[ -n "${NODES}" ]]; then
       echo "${NODES}"
-      printlog error "Waiting another 1m for node update (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
-      sleep 60
+      printlog error "Waiting another ${INTERVAL}s for node update (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
+      sleep ${INTERVAL}
     else
       READY="true"
     fi
@@ -182,11 +188,14 @@ fi
 # Attempt the RHACM deploy twice in case of an unexpected failure or timeout
 ATTEMPTS=0
 MAX_ATTEMPTS=1
-while (! ./start.sh --silent) && [[ "${ATTEMPTS}" != "${MAX_ATTEMPTS}" ]]; do
-  printlog error "RHACM deployment failed. Trying again in 30s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
-  sleep 30
+INTERVAL=30
+FAILED="false"
+while (! ./start.sh --silent) && FAILED="true" && (( ATTEMPTS != MAX_ATTEMPTS )); do
+  printlog error "RHACM deployment failed. Trying again in ${INTERVAL}s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
+  sleep ${INTERVAL}
+  FAILED="false"
 done
-if [[ "${ATTEMPTS}" == "${MAX_ATTEMPTS}" ]]; then
+if [[ "${FAILED}" == "true" ]]; then
   printlog error "RHACM deployment failed. If it appears to be intermittent, re-run the startrhacm script against the same claim to try the RHACM deployment again."
   printlog error "Otherwise, either manually uninstall RHACM or delete the claim, and then try again."
   exit 1
@@ -201,11 +210,14 @@ if [[ -n "${AUTH_REDIRECT_PATHS}" ]]; then
   printlog title "Waiting for ingress to be running to configure localhost connections"
   ATTEMPTS=0
   MAX_ATTEMPTS=15
-  while (! oc get oauthclient multicloudingress) && [[ "${ATTEMPTS}" != "${MAX_ATTEMPTS}" ]]; do
-    printlog error "Error finding ingress. Trying again...(Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
-    sleep 20
+  INTERVAL=20
+  FAILED="false"
+  while (! oc get oauthclient multicloudingress) && FAILED="true" && (( ATTEMPTS != MAX_ATTEMPTS )); do
+    printlog error "Error finding ingress. Trying again in ${INTERVAL}s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
+    sleep ${INTERVAL}
+    FAILED="false"
   done
-  if [[ "${ATTEMPTS}" == "${MAX_ATTEMPTS}" ]]; then
+  if [[ "${FAILED}" == "true" ]]; then
     printlog error "Ingress not patched. Please check your RHACM deployment."
   else
     REDIRECT_PATH_LIST=""
