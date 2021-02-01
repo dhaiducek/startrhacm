@@ -118,30 +118,36 @@ BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-9]\+\.[0-9]\+-" |
 # Get latest downstream snapshot from Quay if DOWNSTREAM is set to "true"
 if [[ ${DOWNSTREAM} == "true" ]]; then
   printlog info "Getting downstream snapshot"
-  RHACM_SNAPSHOT=$(curl -s https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/ | jq -r '.tags[].name' | grep -v "nonesuch\|-$" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
+  # Store user-specified snapshot for logging
+  if [[ -n "${RHACM_SNAPSHOT}" ]]; then
+    USER_SNAPSHOT="${RHACM_SNAPSHOT}"
+  fi
+  RHACM_SNAPSHOT=$(curl -s https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/ | jq -r '.tags[].name' | grep -v "nonesuch\|-$" | grep "${USER_SNAPSHOT}" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
   if [[ -z "${RHACM_SNAPSHOT}" ]]; then
     printlog error "Error querying snapshot list--nothing was returned. Please check https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/, your network connection, and any conflicts in your exports:"
-    printlog error "Query used: RHACM_VERSION: '${RHACM_VERSION}' RHACM_BRANCH '${RHACM_BRANCH}'"
+    printlog error "Query used: RHACM_SNAPSHOT: '${USER_SNAPSHOT}' RHACM_VERSION: '${RHACM_VERSION}' RHACM_BRANCH '${RHACM_BRANCH}'"
     exit 1
   fi
 
 # If DOWNSTREAM is not "true", get snapshot from pipeline repo (defaults to latest edge version)
 else
-  printlog info "Getting upstream snapshot"
-  cd ${RHACM_PIPELINE_PATH}
-  VERSION_NUM=${RHACM_VERSION:=""}
-  PIPELINE_PHASE=${PIPELINE_PHASE:-"edge"}
-  printlog info "Updating repo and switching to the ${BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
-  git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
-  git pull &>/dev/null
-  MANIFEST_TAG=$(ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* | grep -F "${VERSION_NUM}" | tail -n 1 | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}.*")
-  SNAPSHOT_TAG=$(echo ${MANIFEST_TAG} | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}")
-  VERSION_NUM=$(echo ${MANIFEST_TAG} | grep -o "\([[:digit:]]\+\.\)\{2\}[[:digit:]]\+")
-  if [[ -n "${RHACM_VERSION}" && "${RHACM_VERSION}" != "${VERSION_NUM}" ]]; then
-    printlog error "There's an unexpected mismatch between the version provided, ${RHACM_VERSION}, and the version found, ${VERSION_NUM}. Please double check the Pipeline repo before continuing."
-    exit 1
+  if [[ -z "${RHACM_SNAPSHOT}" ]]; then
+    printlog info "Getting upstream snapshot"
+    cd ${RHACM_PIPELINE_PATH}
+    VERSION_NUM=${RHACM_VERSION:=""}
+    PIPELINE_PHASE=${PIPELINE_PHASE:-"edge"}
+    printlog info "Updating repo and switching to the ${BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
+    git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
+    git pull &>/dev/null
+    MANIFEST_TAG=$(ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* | grep -F "${VERSION_NUM}" | tail -n 1 | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}.*")
+    SNAPSHOT_TAG=$(echo ${MANIFEST_TAG} | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}")
+    VERSION_NUM=$(echo ${MANIFEST_TAG} | grep -o "\([[:digit:]]\+\.\)\{2\}[[:digit:]]\+")
+    if [[ -n "${RHACM_VERSION}" && "${RHACM_VERSION}" != "${VERSION_NUM}" ]]; then
+      printlog error "There's an unexpected mismatch between the version provided, ${RHACM_VERSION}, and the version found, ${VERSION_NUM}. Please double check the Pipeline repo before continuing."
+      exit 1
+    fi
+    RHACM_SNAPSHOT="${VERSION_NUM}-SNAPSHOT-${SNAPSHOT_TAG}"
   fi
-  RHACM_SNAPSHOT="${VERSION_NUM}-SNAPSHOT-${SNAPSHOT_TAG}"
 fi
 printlog info "Using RHACM snapshot: ${RHACM_SNAPSHOT}"
 
