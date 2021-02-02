@@ -70,7 +70,7 @@ CLUSTER=$(oc config get-contexts | awk '/^\052/ {print $3}' | awk '{gsub("^api-"
 if [[ "${KUBECONFIG}" == */lifeguard/clusterclaims/*/kubeconfig ]]; then
   printlog error "KUBECONFIG is set to an existing claim's configuration file. Please unset before continuing: unset KUBECONFIG"
   exit 1
-else [[ "${CLUSTER}" != "collective-aws" ]] || (! oc status &>/dev/null); then
+elif [[ "${CLUSTER}" != "collective-aws" ]] || (! oc status &>/dev/null); then
   printlog info "The oc CLI is not currently logged in to the collective cluster. Please configure the CLI and try again."
   printlog info "KUBECONFIG is currently set: $(test -n "${KUBECONFIG}" && echo "true" || echo "false")"
   printlog info "Current cluster: ${CLUSTER}"
