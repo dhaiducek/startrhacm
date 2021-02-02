@@ -15,7 +15,9 @@ export AUTH_REDIRECT_PATHS=("/" "/policies/" "/header/" "/topology/" "/applicati
 
 # ClusterClaim exports
 export CLUSTERPOOL_TARGET_NAMESPACE="" # Your namespace on the collective cluster
-export CLUSTERPOOL_NAME="" # Name of the clusterpool to use
+export CLUSTERPOOL_NAME="" # Name of the ClusterPool to use
+export CLUSTERPOOL_RESIZE="" # Set to "true" to allow resizing of the pool if all clusters have been claimed (CLUSTERPOOL_TARGET_NAMESPACE and CLUSTERPOOL_NAME must both be specified for this to work)
+export CLUSTERPOOL_MAX_CLUSTERS="" # Maximum clusters to allow in the ClusterPool if CLUSTERPOOL_RESIZE is enabled)
 export CLUSTERCLAIM_NAME="" # Name of the clusterclaim to create
 export CLUSTERCLAIM_GROUP_NAME="" # RBAC group in cluster (also used for labeling--should match GitHub team)
 export CLUSTERCLAIM_END_TIME="" # Integer hour in 24h clock at which to expire the cluster

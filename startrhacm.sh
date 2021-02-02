@@ -78,6 +78,24 @@ elif [[ "${CLUSTER}" != "collective-aws" ]] || (! oc status &>/dev/null); then
   exit 1
 fi
 
+# Check to see whether there are available clusters in the ClusterPool specified
+if [[ "${CLUSTERPOOL_RESIZE}" == "true" ]] && [[ -n "${CLUSTERPOOL_NAME}" ]] && [[ -n "${CLUSTERPOOL_TARGET_NAMESPACE}" ]]; then
+  # If a ClusterClaim name was specified and it already exists, we'll continue on without checking pool size since it'll patch it
+  if [[ -z "${CLUSTERCLAIM_NAME}" ]] || ( [[ -n "${CLUSTERCLAIM_NAME}" ]] && (! oc get clusterclaims -n ${CLUSTERPOOL_TARGET_NAMESPACE} ${CLUSTERCLAIM_NAME} &>/dev/null) ); then
+    printlog title "Checking for available claims in ClusterPool ${CLUSTERPOOL_NAME}"
+    NUM_CLAIMS=$(oc get clusterclaim -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o custom-columns='CLUSTERPOOL:.spec.clusterPoolName' --no-headers | grep "${CLUSTERPOOL_NAME}" | wc -l)
+    POOL_SIZE=$(oc get clusterpool -n ${CLUSTERPOOL_TARGET_NAMESPACE} ${CLUSTERPOOL_NAME} -o jsonpath={.spec.size})
+    if (( NUM_CLAIMS >= POOL_SIZE )); then
+      if [[ -n "${CLUSTERPOOL_MAX_CLUSTERS}" ]] && (( NUM_CLAIMS >= CLUSTERPOOL_MAX_CLUSTERS )); then
+        printlog error "Found $((NUM_CLAIMS)) ClusterClaims for this pool, which is at or above the requested maximum of ${CLUSTERPOOL_MAX_CLUSTERS} clusters. Please delete claims, increase the maximum, or choose a different pool. Exiting."
+        exit 1
+      fi
+      printlog info "The ClusterPool is entirely claimed. Patching the ClusterPool to increase the size of the pool."
+      oc patch clusterpool ${CLUSTERPOOL_NAME} --type merge --patch '{"spec":{"size":'$((NUM_CLAIMS+1))'}}'
+    fi
+  fi
+fi
+
 # Claim cluster from ClusterPool
 printlog title "Creating ClusterClaim from ClusterPool ${CLUSTERPOOL_NAME}"
 CLAIM_DIR=${LIFEGUARD_PATH}/clusterclaims

@@ -17,6 +17,7 @@ export AUTH_REDIRECT_PATHS=("/" "/policies/" "/header/" "/topology/")
 OCP_VERSION="4.6.8"
 export CLUSTERPOOL_TARGET_NAMESPACE="acm-grc-security"
 export CLUSTERPOOL_NAME="${GROUP_NAME}-cp-v$(echo ${OCP_VERSION} | sed 's/\.//g')"
+export CLUSTERPOOL_RESIZE="true"
 export CLUSTERCLAIM_NAME="${CLUSTERPOOL_USER}-${CLUSTERPOOL_NAME}"
 export CLUSTERCLAIM_GROUP_NAME=${GROUP_NAME}
 export CLUSTERCLAIM_END_TIME="18"
