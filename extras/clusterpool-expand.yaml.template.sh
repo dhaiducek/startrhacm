@@ -2,9 +2,12 @@
 
 set -e
 
+CLUSTERPOOL_MAX=${CLUSTERPOOL_MAX:-2}
+
 echo "Using exports (if there's no output, please set these variables and try again):"
 echo "* SERVICE_ACCOUNT_NAME: ${SERVICE_ACCOUNT_NAME}"
 echo "* CLUSTERPOOL_TARGET_NAMESPACE: ${CLUSTERPOOL_TARGET_NAMESPACE}"
+echo "* CLUSTERPOOL_MAX: ${CLUSTERPOOL_MAX}"
 
 cat >clusterpool-expand.yaml <<EOF
 apiVersion: batch/v1beta1
@@ -32,7 +35,7 @@ spec:
             - /bin/sh
             args:
             - -c
-            - date; for pool in \$(kubectl get clusterpool -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o name); do kubectl patch \${pool} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --type merge --patch '{"spec":{"size":"2"}}'; done
+            - date; for pool in \$(kubectl get clusterpool -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o name); do kubectl patch \${pool} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --type merge --patch '{"spec":{"size":"${CLUSTERPOOL_MAX}"}}'; done
           restartPolicy: OnFailure
 EOF
 
