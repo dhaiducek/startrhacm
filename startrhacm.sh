@@ -62,6 +62,7 @@ if ls ${SCRIPT_DIR}/utils/config.sh &>/dev/null; then
   fi
 else
   printlog info "config.sh script not found--checking exports for LIFEGUARD_PATH, RHACM_PIPELINE_PATH, and RHACM_DEPLOY_PATH"
+  printlog info "(Location checked for script: ${SCRIPT_DIR}/utils/config.sh)"
   checkexports
 fi
 

@@ -5,8 +5,17 @@ Deploy Red Hat Advanced Cluster Management (RHACM) via ClusterPool
 ./startrhacm.sh
 ```
 
-## Prerequisites
+## Features
 
+- Claims an OpenShift cluster from a ClusterPool and deploys Upstream or Downstream RHACM of any available branch (x.x), version (x.x.x), or snapshot
+- (optional) Automatically resizes a specified pool if the pool isn't large enough
+- (optional) Patch the cluster to accept connections from localhost paths for development
+- `startrhacm.sh` can be aliased and run from anywhere on your computer:
+  ```bash
+  alias startrhacm="${PATH_TO_STARTRHACM}/startrhacm.sh"
+  ```
+
+## Prerequisites
 Clone and export paths to the following local repos:
 
 ```bash
