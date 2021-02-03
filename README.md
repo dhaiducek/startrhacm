@@ -38,7 +38,7 @@ These exports are also included (along with other configurations) in a `utils/co
 
 ## Extras
 
-- Grow and/or expand ALL ClusterPools on a schedule using a CronJob. By default, schedules are set to shrink to 1 at 10 PM EST daily (1 AM UTC) and expand to 2 at 6 AM EST Monday-Friday (11 AM UTC)
+- Grow and/or expand ALL ClusterPools on a schedule using a CronJob. By default, schedules are set to shrink to 1 at 8 PM EST (1 AM UTC) every day and expand to 2 at 6 AM EST (11 AM UTC) Monday - Friday
   ```bash
   cd extras
   export CLUSTERPOOL_TARGET_NAMESPACE=<namespace>
