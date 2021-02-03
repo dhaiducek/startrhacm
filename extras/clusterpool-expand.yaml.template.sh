@@ -40,5 +40,5 @@ EOF
 
 echo ""
 echo "CronJob YAML created! "
-echo "* To apply to the cluster:"
-echo "oc apply -f clusterpool-expand.yaml"
+echo "* To apply to the ClusterPool cluster:"
+echo "oc apply -n ${CLUSTERPOOL_TARGET_NAMESPACE} -f clusterpool-expand.yaml"
