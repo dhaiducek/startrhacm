@@ -1,2 +1,5 @@
 # Ignore user configuration script
 utils/config.sh
+
+# Ignore user created YAML files
+extras/*.yaml
