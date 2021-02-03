@@ -2,6 +2,8 @@
 
 set -e
 
+# Patches all ClusterPools to shrink to CLUSTERPOOL_MAX (default: 1) at 8 PM ET (1 AM UTC) every day
+
 CLUSTERPOOL_MIN=${CLUSTERPOOL_MIN:-1}
 
 echo "Using exports (if there's no output, please set these variables and try again):"

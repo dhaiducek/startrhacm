@@ -2,6 +2,8 @@
 
 set -e
 
+# Patches all ClusterPools to grow to CLUSTERPOOL_MAX (default: 2) at 6 AM ET (11 AM UTC) Monday - Friday
+
 CLUSTERPOOL_MAX=${CLUSTERPOOL_MAX:-2}
 
 echo "Using exports (if there's no output, please set these variables and try again):"

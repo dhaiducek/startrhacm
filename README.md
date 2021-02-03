@@ -1,4 +1,5 @@
 # startrhacm
+
 Deploy Red Hat Advanced Cluster Management (RHACM) via ClusterPool
 
 ```bash
@@ -16,6 +17,7 @@ Deploy Red Hat Advanced Cluster Management (RHACM) via ClusterPool
   ```
 
 ## Prerequisites
+
 Clone and export paths to the following local repos:
 
 ```bash
@@ -31,4 +33,17 @@ export RHACM_PIPELINE_PATH= # Path to local Pipeline repo
 These exports are also included (along with other configurations) in a `utils/config.sh` script. To set up `config.sh` for your own use, customize [`utils/config.sh.template`](./utils/config.sh.template) or your squad-specific template below as desired and rename it to `utils/config.sh`.
 
 ### Squad-specific `config.sh` Templates
+
 - GRC - [`config.sh.template-grc`](./utils/config.sh.template-grc)
+
+## Extras
+
+- Grow and/or expand ALL ClusterPools on a schedule using a CronJob. By default, schedules are set to shrink to 1 at 10 PM EST daily (1 AM UTC) and expand to 2 at 6 AM EST Monday-Friday (11 AM UTC)
+  ```bash
+  cd extras
+  export CLUSTERPOOL_TARGET_NAMESPACE=<namespace>
+  export SERVICE_ACCOUNT_NAME=<service-account-name>
+  ./clusterpool-expand.yaml.template.sh
+  ./clusterpool-expand.yaml.template.sh
+  oc apply -f .
+  ```
