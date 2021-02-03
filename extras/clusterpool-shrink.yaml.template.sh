@@ -2,7 +2,7 @@
 
 set -e
 
-# Patches all ClusterPools to shrink to CLUSTERPOOL_MAX (default: 1) at 8 PM ET (1 AM UTC) every day
+# Patches all ClusterPools to shrink to CLUSTERPOOL_MAX (default: 1) at 8 PM EST (1 AM UTC) every day
 
 CLUSTERPOOL_MIN=${CLUSTERPOOL_MIN:-1}
 

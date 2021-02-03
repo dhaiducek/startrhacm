@@ -2,7 +2,7 @@
 
 set -e
 
-# Patches all ClusterPools to grow to CLUSTERPOOL_MAX (default: 2) at 6 AM ET (11 AM UTC) Monday - Friday
+# Patches all ClusterPools to grow to CLUSTERPOOL_MAX (default: 2) at 6 AM EST (11 AM UTC) Monday - Friday
 
 CLUSTERPOOL_MAX=${CLUSTERPOOL_MAX:-2}
 

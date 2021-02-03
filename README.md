@@ -38,12 +38,12 @@ These exports are also included (along with other configurations) in a `utils/co
 
 ## Extras
 
-- Grow and/or expand ALL ClusterPools on a schedule using a CronJob. By default, schedules are set to shrink to 1 at 8 PM EST (1 AM UTC) every day and expand to 2 at 6 AM EST (11 AM UTC) Monday - Friday
+- Shrink and/or expand ALL ClusterPool sizes on a schedule using a CronJob. By default, schedules are set to shrink to 1 at 8 PM EST (1 AM UTC) every day and expand to 2 at 6 AM EST (11 AM UTC) Monday - Friday
   ```bash
   cd extras
   export CLUSTERPOOL_TARGET_NAMESPACE=<namespace>
   export SERVICE_ACCOUNT_NAME=<service-account-name>
-  ./clusterpool-expand.yaml.template.sh
+  ./clusterpool-shrink.yaml.template.sh
   ./clusterpool-expand.yaml.template.sh
   oc apply -f .
   ```
