@@ -14,7 +14,7 @@ GROUP_NAME="policy-grc"
 export AUTH_REDIRECT_PATHS=("/" "/policies/" "/header/" "/topology/")
 
 # ClusterClaim exports
-OCP_VERSION="4.6.8"
+OCP_VERSION="4.6.12"
 export CLUSTERPOOL_TARGET_NAMESPACE="acm-grc-security"
 export CLUSTERPOOL_NAME="${GROUP_NAME}-cp-v$(echo ${OCP_VERSION} | sed 's/\.//g')"
 export CLUSTERPOOL_RESIZE="true"
