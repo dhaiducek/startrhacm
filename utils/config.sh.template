@@ -7,8 +7,8 @@
 
 # Path to Git directories
 export LIFEGUARD_PATH="" # Path to local Lifeguard repo
-export RHACM_PIPELINE_PATH="" # Path to local Pipeline repo
 export RHACM_DEPLOY_PATH="" # Path to local Deploy repo
+export RHACM_PIPELINE_PATH="" # Path to local Pipeline repo
 
 # Paths for allowable ingress auth redirects from localhost (for development) -- defaults to none if not provided; used in template "https://localhost:3000/multicloud" + ${PATH} + "auth/callback"
 # For example: export AUTH_REDIRECT_PATHS=("/" "/policies/" "/header/" "/topology/" "/applications/" "/clusters/" "/overview/" "/bare-metal-assets/" "/search/")

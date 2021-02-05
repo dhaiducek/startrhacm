@@ -106,10 +106,13 @@ git checkout main &>/dev/null
 git pull &>/dev/null
 # Set lifetime of claim to end of work day
 if [[ -n "${CLUSTERCLAIM_END_TIME}" ]]; then
-  printlog info "Calculating lifetime of claim to end at: ${CLUSTERCLAIM_END_TIME}"
-  export CLUSTERCLAIM_LIFETIME="$((${CLUSTERCLAIM_END_TIME}-$(date "+%-H")-1))h$((60-$(date "+%-M")))m"
-  if  (oc get clusterclaim "${CLUSTERCLAIM_NAME}" &>/dev/null); then
-    printlog info "WARNING: if this claim already exists, resetting its lifetime to a smaller value could unintentionally delete the claim since the lifetime is calculated from the creation time"
+  printlog info "Setting CLUSTERCLAIM_LIFETIME to end at hour ${CLUSTERCLAIM_END_TIME} of a 24 hour clock"
+  if [[ -n "${CLUSTERCLAIM_NAME}" ]] && (oc get clusterclaim "${CLUSTERCLAIM_NAME}" &>/dev/null); then
+    printlog error "Found existing claim with name ${CLUSTERCLAIM_NAME}, so its lifetime (which is based on its creation time) will not be recalculated."
+    export CLUSTERCLAIM_LIFETIME=$(oc get clusterclaim ${CLUSTERCLAIM_NAME} -o jsonpath='{.spec.lifetime}')
+    printlog error "Using claim's existing lifetime of ${CLUSTERCLAIM_LIFETIME}. If a different lifetime is desired, please manually edit the claim."
+  else
+    export CLUSTERCLAIM_LIFETIME="$((${CLUSTERCLAIM_END_TIME}-$(date "+%-H")-1))h$((60-$(date "+%-M")))m"
   fi
 fi
 ./apply.sh
