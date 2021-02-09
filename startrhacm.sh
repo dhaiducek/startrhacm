@@ -131,6 +131,9 @@ if [[ -n "${CLUSTERCLAIM_NAME}" ]]; then
 else
   export KUBECONFIG=$(ls -dt1 ${CLAIM_DIR}/*/kubeconfig | head -n 1)
 fi
+# Set namespace context in case it wasn't set or we're inside a pod specifying a different namespace in env
+oc config set-context --current --namespace=default
+# Try twice to deploy 
 ATTEMPTS=0
 MAX_ATTEMPTS=15
 INTERVAL=20
@@ -177,8 +180,16 @@ else
     git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
     git pull &>/dev/null
     if (! ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-*); then
-      printlog error "The branch, ${BRANCH}-${PIPELINE_PHASE}, doesn't appear to have any snapshots/manifest-* files to parse a snapshot from. Please double check the Pipeline repo and set RHACM_BRANCH as needed."
-      exit 1
+      printlog error "The branch, ${BRANCH}-${PIPELINE_PHASE}, doesn't appear to have any snapshots/manifest-* files to parse a snapshot from."
+      if [[ -z "${RHACM_BRANCH}" ]]; then
+        BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-9]\+\.[0-9]\+-" | sort -uV | tail -2 | head -1 | grep -o "[0-9]\+\.[0-9]\+")}
+        printlog info "RHACM_BRANCH was not set. Using an older branch: ${BRANCH}-${PIPELINE_PHASE}"
+        git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
+        git pull &>/dev/null
+      else
+        printlog error "Please double check the Pipeline repo and set RHACM_BRANCH as needed."
+        exit 1
+      fi
     fi
     MANIFEST_TAG=$(ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* | grep -F "${VERSION_NUM}" | tail -n 1 | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}.*")
     SNAPSHOT_TAG=$(echo ${MANIFEST_TAG} | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}")
