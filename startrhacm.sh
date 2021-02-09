@@ -67,16 +67,18 @@ else
 fi
 
 # Verify we're pointed to the collective cluster
-CLUSTER=$(oc config get-contexts | awk '/^\052/ {print $3}' | awk '{gsub("^api-",""); gsub("(\/|-red-chesterfield).*",""); print}')
-if [[ "${KUBECONFIG}" == */lifeguard/clusterclaims/*/kubeconfig ]]; then
-  printlog error "KUBECONFIG is set to an existing claim's configuration file. Please unset before continuing: unset KUBECONFIG"
-  exit 1
-elif [[ "${CLUSTER}" != "collective-aws" ]] || (! oc status &>/dev/null); then
-  printlog info "The oc CLI is not currently logged in to the collective cluster. Please configure the CLI and try again."
-  printlog info "KUBECONFIG is currently set: $(test -n "${KUBECONFIG}" && echo "true" || echo "false")"
-  printlog info "Current cluster: ${CLUSTER}"
-  printlog info "Link to Collective cluster login command: https://oauth-openshift.apps.collective.aws.red-chesterfield.com/oauth/token/request"
-  exit 1
+if [[ "${DISABLE_CLUSTER_CHECK}" != "true" ]]; then
+  CLUSTER=$(oc config get-contexts | awk '/^\052/ {print $3}' | awk '{gsub("^api-",""); gsub("(\\/|-red-chesterfield).*",""); print}')
+  if [[ "${KUBECONFIG}" == */lifeguard/clusterclaims/*/kubeconfig ]]; then
+    printlog error "KUBECONFIG is set to an existing claim's configuration file. Please unset before continuing: unset KUBECONFIG"
+    exit 1
+  elif [[ "${CLUSTER}" != "collective-aws" ]] || (! oc status &>/dev/null); then
+    printlog info "The oc CLI is not currently logged in to the collective cluster. Please configure the CLI and try again."
+    printlog info "KUBECONFIG is currently set: $(test -n "${KUBECONFIG}" && echo "true" || echo "false")"
+    printlog info "Current cluster: ${CLUSTER}"
+    printlog info "Link to Collective cluster login command: https://oauth-openshift.apps.collective.aws.red-chesterfield.com/oauth/token/request"
+    exit 1
+  fi
 fi
 
 # Check to see whether there are available clusters in the ClusterPool specified
