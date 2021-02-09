@@ -79,6 +79,12 @@ if [[ "${DISABLE_CLUSTER_CHECK}" != "true" ]]; then
     printlog info "Link to Collective cluster login command: https://oauth-openshift.apps.collective.aws.red-chesterfield.com/oauth/token/request"
     exit 1
   fi
+else
+  printlog info "Cluster check has been disabled. Verifying login."
+  if (! oc status &>/dev/null); then
+    printlog error "Error verifying cluster login. Please make sure you're logged in to a ClusterPool cluster."
+    exit 1
+  fi
 fi
 
 # Check to see whether there are available clusters in the ClusterPool specified
@@ -171,7 +177,7 @@ else
     git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
     git pull &>/dev/null
     if (! ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-*); then
-      printlog error "The branch, ${BRANCH}-${PIPELINE_PHASE}, doesn't appear to have any snapshots/manifest-* files to parse a snapshot from. Please double check the Pipeline repo and set the branch as needed."
+      printlog error "The branch, ${BRANCH}-${PIPELINE_PHASE}, doesn't appear to have any snapshots/manifest-* files to parse a snapshot from. Please double check the Pipeline repo and set RHACM_BRANCH as needed."
       exit 1
     fi
     MANIFEST_TAG=$(ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* | grep -F "${VERSION_NUM}" | tail -n 1 | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}.*")
