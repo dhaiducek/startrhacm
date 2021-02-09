@@ -210,7 +210,7 @@ printlog info "Updating repo and switching to the master branch (if this exits, 
 git checkout master &>/dev/null
 git pull &>/dev/null
 echo "${RHACM_SNAPSHOT}" > ${RHACM_DEPLOY_PATH}/snapshot.ver
-if (! ls ${RHACM_DEPLOY_PATH}/prereqs/pull-secret.yaml &>/dev/null) || [[ -z "${QUAY_TOKEN}" ]]; then
+if (! ls ${RHACM_DEPLOY_PATH}/prereqs/pull-secret.yaml &>/dev/null) && [[ -z "${QUAY_TOKEN}" ]]; then
   printlog error "Error finding pull secret in deploy repo. Please consult https://github.com/open-cluster-management/deploy on how to set it up."
   exit 1
 fi
