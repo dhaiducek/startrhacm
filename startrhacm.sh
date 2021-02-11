@@ -169,7 +169,7 @@ if [[ "${DOWNSTREAM}" == "true" ]]; then
   while [[ "${HAS_ADDITIONAL}" == "true" ]] && [[ -z "${RHACM_SNAPSHOT}" ]]; do
     ((i++))
     HAS_ADDITIONAL=$(curl -s "https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.has_additional')
-    RHACM_SNAPSHOT=$(curl -s "https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.tags[].name' | grep -v "nonesuch\|-$" | grep "${USER_SNAPSHOT}" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1); echo ${RHACM_SNAPSHOT}
+    RHACM_SNAPSHOT=$(curl -s "https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.tags[].name' | grep -v "nonesuch\|-$" | grep "${USER_SNAPSHOT}" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
   done
   
   if [[ -z "${RHACM_SNAPSHOT}" ]]; then
