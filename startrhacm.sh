@@ -156,13 +156,22 @@ RHACM_BRANCH=${RHACM_BRANCH:-$(echo "${RHACM_VERSION}" | grep -o "[[:digit:]]\+\
 BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-9]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
 
 # Get latest downstream snapshot from Quay if DOWNSTREAM is set to "true"
-if [[ ${DOWNSTREAM} == "true" ]]; then
+if [[ "${DOWNSTREAM}" == "true" ]]; then
   printlog info "Getting downstream snapshot"
   # Store user-specified snapshot for logging
   if [[ -n "${RHACM_SNAPSHOT}" ]]; then
     USER_SNAPSHOT="${RHACM_SNAPSHOT}"
+    RHACM_SNAPSHOT=""
   fi
-  RHACM_SNAPSHOT=$(curl -s https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/ | jq -r '.tags[].name' | grep -v "nonesuch\|-$" | grep "${USER_SNAPSHOT}" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
+  # Iterate over the all the pages of the repo
+  HAS_ADDITIONAL="true"
+  i=0
+  while [[ "${HAS_ADDITIONAL}" == "true" ]] && [[ -z "${RHACM_SNAPSHOT}" ]]; do
+    ((i++))
+    HAS_ADDITIONAL=$(curl -s "https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.has_additional')
+    RHACM_SNAPSHOT=$(curl -s "https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.tags[].name' | grep -v "nonesuch\|-$" | grep "${USER_SNAPSHOT}" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1); echo ${RHACM_SNAPSHOT}
+  done
+  
   if [[ -z "${RHACM_SNAPSHOT}" ]]; then
     printlog error "Error querying snapshot list--nothing was returned. Please check https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/, your network connection, and any conflicts in your exports:"
     printlog error "Query used: RHACM_SNAPSHOT: '${USER_SNAPSHOT}' RHACM_VERSION: '${RHACM_VERSION}' RHACM_BRANCH '${RHACM_BRANCH}'"
