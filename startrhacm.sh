@@ -67,16 +67,24 @@ else
 fi
 
 # Verify we're pointed to the collective cluster
-CLUSTER=$(oc config get-contexts | awk '/^\052/ {print $3}' | awk '{gsub("^api-",""); gsub("(\/|-red-chesterfield).*",""); print}')
-if [[ "${KUBECONFIG}" == */lifeguard/clusterclaims/*/kubeconfig ]]; then
-  printlog error "KUBECONFIG is set to an existing claim's configuration file. Please unset before continuing: unset KUBECONFIG"
-  exit 1
-elif [[ "${CLUSTER}" != "collective-aws" ]] || (! oc status &>/dev/null); then
-  printlog info "The oc CLI is not currently logged in to the collective cluster. Please configure the CLI and try again."
-  printlog info "KUBECONFIG is currently set: $(test -n "${KUBECONFIG}" && echo "true" || echo "false")"
-  printlog info "Current cluster: ${CLUSTER}"
-  printlog info "Link to Collective cluster login command: https://oauth-openshift.apps.collective.aws.red-chesterfield.com/oauth/token/request"
-  exit 1
+if [[ "${DISABLE_CLUSTER_CHECK}" != "true" ]]; then
+  CLUSTER=$(oc config get-contexts | awk '/^\052/ {print $3}' | awk '{gsub("^api-",""); gsub("(\\/|-red-chesterfield).*",""); print}')
+  if [[ "${KUBECONFIG}" == */lifeguard/clusterclaims/*/kubeconfig ]]; then
+    printlog error "KUBECONFIG is set to an existing claim's configuration file. Please unset before continuing: unset KUBECONFIG"
+    exit 1
+  elif [[ "${CLUSTER}" != "collective-aws" ]] || (! oc status &>/dev/null); then
+    printlog info "The oc CLI is not currently logged in to the collective cluster. Please configure the CLI and try again."
+    printlog info "KUBECONFIG is currently set: $(test -n "${KUBECONFIG}" && echo "true" || echo "false")"
+    printlog info "Current cluster: ${CLUSTER}"
+    printlog info "Link to Collective cluster login command: https://oauth-openshift.apps.collective.aws.red-chesterfield.com/oauth/token/request"
+    exit 1
+  fi
+else
+  printlog info "Cluster check has been disabled. Verifying login."
+  if (! oc status &>/dev/null); then
+    printlog error "Error verifying cluster login. Please make sure you're logged in to a ClusterPool cluster."
+    exit 1
+  fi
 fi
 
 # Check to see whether there are available clusters in the ClusterPool specified
@@ -106,10 +114,13 @@ git checkout main &>/dev/null
 git pull &>/dev/null
 # Set lifetime of claim to end of work day
 if [[ -n "${CLUSTERCLAIM_END_TIME}" ]]; then
-  printlog info "Calculating lifetime of claim to end at: ${CLUSTERCLAIM_END_TIME}"
-  export CLUSTERCLAIM_LIFETIME="$((${CLUSTERCLAIM_END_TIME}-$(date "+%-H")-1))h$((60-$(date "+%-M")))m"
-  if  (oc get clusterclaim "${CLUSTERCLAIM_NAME}" &>/dev/null); then
-    printlog info "WARNING: if this claim already exists, resetting its lifetime to a smaller value could unintentionally delete the claim since the lifetime is calculated from the creation time"
+  printlog info "Setting CLUSTERCLAIM_LIFETIME to end at hour ${CLUSTERCLAIM_END_TIME} of a 24 hour clock"
+  if [[ -n "${CLUSTERCLAIM_NAME}" ]] && (oc get clusterclaim "${CLUSTERCLAIM_NAME}" &>/dev/null); then
+    printlog error "Found existing claim with name ${CLUSTERCLAIM_NAME}, so its lifetime (which is based on its creation time) will not be recalculated."
+    export CLUSTERCLAIM_LIFETIME=$(oc get clusterclaim ${CLUSTERCLAIM_NAME} -o jsonpath='{.spec.lifetime}')
+    printlog error "Using claim's existing lifetime of ${CLUSTERCLAIM_LIFETIME}. If a different lifetime is desired, please manually edit the claim."
+  else
+    export CLUSTERCLAIM_LIFETIME="$((${CLUSTERCLAIM_END_TIME}-$(date "+%-H")-1))h$((60-$(date "+%-M")))m"
   fi
 fi
 ./apply.sh
@@ -120,6 +131,9 @@ if [[ -n "${CLUSTERCLAIM_NAME}" ]]; then
 else
   export KUBECONFIG=$(ls -dt1 ${CLAIM_DIR}/*/kubeconfig | head -n 1)
 fi
+# Set namespace context in case it wasn't set or we're inside a pod specifying a different namespace in env
+oc config set-context --current --namespace=default
+# Try twice to deploy 
 ATTEMPTS=0
 MAX_ATTEMPTS=15
 INTERVAL=20
@@ -142,13 +156,22 @@ RHACM_BRANCH=${RHACM_BRANCH:-$(echo "${RHACM_VERSION}" | grep -o "[[:digit:]]\+\
 BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-9]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
 
 # Get latest downstream snapshot from Quay if DOWNSTREAM is set to "true"
-if [[ ${DOWNSTREAM} == "true" ]]; then
+if [[ "${DOWNSTREAM}" == "true" ]]; then
   printlog info "Getting downstream snapshot"
   # Store user-specified snapshot for logging
   if [[ -n "${RHACM_SNAPSHOT}" ]]; then
     USER_SNAPSHOT="${RHACM_SNAPSHOT}"
+    RHACM_SNAPSHOT=""
   fi
-  RHACM_SNAPSHOT=$(curl -s https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/ | jq -r '.tags[].name' | grep -v "nonesuch\|-$" | grep "${USER_SNAPSHOT}" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
+  # Iterate over the all the pages of the repo
+  HAS_ADDITIONAL="true"
+  i=0
+  while [[ "${HAS_ADDITIONAL}" == "true" ]] && [[ -z "${RHACM_SNAPSHOT}" ]]; do
+    ((i++))
+    HAS_ADDITIONAL=$(curl -s "https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.has_additional')
+    RHACM_SNAPSHOT=$(curl -s "https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.tags[].name' | grep -v "nonesuch\|-$" | grep "${USER_SNAPSHOT}" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
+  done
+  
   if [[ -z "${RHACM_SNAPSHOT}" ]]; then
     printlog error "Error querying snapshot list--nothing was returned. Please check https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/, your network connection, and any conflicts in your exports:"
     printlog error "Query used: RHACM_SNAPSHOT: '${USER_SNAPSHOT}' RHACM_VERSION: '${RHACM_VERSION}' RHACM_BRANCH '${RHACM_BRANCH}'"
@@ -165,6 +188,18 @@ else
     printlog info "Updating repo and switching to the ${BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
     git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
     git pull &>/dev/null
+    if (! ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-*); then
+      printlog error "The branch, ${BRANCH}-${PIPELINE_PHASE}, doesn't appear to have any snapshots/manifest-* files to parse a snapshot from."
+      if [[ -z "${RHACM_BRANCH}" ]]; then
+        BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-9]\+\.[0-9]\+-" | sort -uV | tail -2 | head -1 | grep -o "[0-9]\+\.[0-9]\+")}
+        printlog info "RHACM_BRANCH was not set. Using an older branch: ${BRANCH}-${PIPELINE_PHASE}"
+        git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
+        git pull &>/dev/null
+      else
+        printlog error "Please double check the Pipeline repo and set RHACM_BRANCH as needed."
+        exit 1
+      fi
+    fi
     MANIFEST_TAG=$(ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* | grep -F "${VERSION_NUM}" | tail -n 1 | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}.*")
     SNAPSHOT_TAG=$(echo ${MANIFEST_TAG} | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}")
     VERSION_NUM=$(echo ${MANIFEST_TAG} | grep -o "\([[:digit:]]\+\.\)\{2\}[[:digit:]]\+")
@@ -184,7 +219,7 @@ printlog info "Updating repo and switching to the master branch (if this exits, 
 git checkout master &>/dev/null
 git pull &>/dev/null
 echo "${RHACM_SNAPSHOT}" > ${RHACM_DEPLOY_PATH}/snapshot.ver
-if (! ls ${RHACM_DEPLOY_PATH}/prereqs/pull-secret.yaml &>/dev/null); then
+if (! ls ${RHACM_DEPLOY_PATH}/prereqs/pull-secret.yaml &>/dev/null) && [[ -z "${QUAY_TOKEN}" ]]; then
   printlog error "Error finding pull secret in deploy repo. Please consult https://github.com/open-cluster-management/deploy on how to set it up."
   exit 1
 fi

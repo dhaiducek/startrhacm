@@ -22,29 +22,29 @@ Deploy Red Hat Advanced Cluster Management (RHACM) via ClusterPool
 
 - [Lifeguard](https://github.com/open-cluster-management/lifeguard) - Collection of scripts to claim from ClusterPools
 - [Deploy](https://github.com/open-cluster-management/deploy) - Installation scripts for RHACM
-  -  **Setup pull secret (see the link for instructions on setting up the pull secret that it uses)**
+  - _Be sure to set up your pull secret for Deploy ([see Deploy documentation](https://github.com/open-cluster-management/deploy#prepare-to-deploy-open-cluster-management-instance-only-do-once))_
 - [Pipeline](https://github.com/open-cluster-management/pipeline/) - Collection of available RHACM snapshots (private repo)
-
+  - _Exception: Pipeline is not necessary if the full snapshot is provided via RHACM_SNAPSHOT_
 
 ### Setup config scripts
 
-To set up `config.sh` for your own use, customize [`utils/config.sh.template`](./utils/config.sh.template) or your squad-specific template below as desired and rename it to `utils/config.sh`.
+Exports are contained in a `config.sh` script (but they can also be exported outside of the script if desired). To set up `config.sh` for your own use, customize [`utils/config.sh.template`](./utils/config.sh.template) or your squad-specific template below as desired and rename it to `utils/config.sh`.
 
-- Set path to cloned repos
-```bash
-export LIFEGUARD_PATH= # Path to local Lifeguard repo
-export RHACM_DEPLOY_PATH= # Path to local Deploy repo
-export RHACM_PIPELINE_PATH= # Path to local Pipeline repo
-```
-- Optionally configure other variables as indicated in the comments
+- **Required**: Set paths to cloned repos
+  ```bash
+  export LIFEGUARD_PATH= # Path to local Lifeguard repo
+  export RHACM_DEPLOY_PATH= # Path to local Deploy repo
+  export RHACM_PIPELINE_PATH= # Path to local Pipeline repo (optional only if deploying downstream or RHACM_SNAPSHOT is specified directly)
+  ```
+- Optionally configure other variables as indicated in the comments in [`utils/config.sh.template`](./utils/config.sh.template) (if optional variables are not provided, the `startrhacm.sh` script will prompt you for ClusterClaim options and will deploy the latest upstream RHACM snapshot)
+- Set up file permissions for the config script to be executable
+  ```bash
+  chmod +x ./utils/config.sh
+  ```
 
-- (on Mac) May need to setup file permissions for the config scripts
-```bash
-chmod +x ./utils/config.sh
-```
+### Configure `oc` CLI to point to the Collective cluster
 
-### Configure oc cli to the collective cluster
-[Link to Collective cluster login command](https://oauth-openshift.apps.collective.aws.red-chesterfield.com/oauth/token/request)
+You'll need to be logged in to the Collective cluster that hosts ClusterPools. If you're not, `startrhacm.sh` will detect this and provide you with the [link to the login command](https://oauth-openshift.apps.collective.aws.red-chesterfield.com/oauth/token/request). (If you're using a different ClusterPool cluster, you can disable this check by setting `export DISABLE_CLUSTER_CHECK="true"`)
 
 ### Squad-specific `config.sh` Templates
 
