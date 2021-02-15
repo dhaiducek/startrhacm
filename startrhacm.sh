@@ -188,7 +188,7 @@ else
     printlog info "Updating repo and switching to the ${BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
     git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
     git pull &>/dev/null
-    if (! ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-*); then
+    if (! ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* &>/dev/null); then
       printlog error "The branch, ${BRANCH}-${PIPELINE_PHASE}, doesn't appear to have any snapshots/manifest-* files to parse a snapshot from."
       if [[ -z "${RHACM_BRANCH}" ]]; then
         BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-9]\+\.[0-9]\+-" | sort -uV | tail -2 | head -1 | grep -o "[0-9]\+\.[0-9]\+")}
@@ -224,13 +224,23 @@ if (! ls ${RHACM_DEPLOY_PATH}/prereqs/pull-secret.yaml &>/dev/null) && [[ -z "${
   exit 1
 fi
 # Deploy necessary downstream resources if required
-if [[ "${DOWNSTREAM}" == "true" ]]; then
-  printlog info "Setting up for downstream deployment"
-  export COMPOSITE_BUNDLE=true
-  export CUSTOM_REGISTRY_REPO="quay.io:443/acm-d"
-  export QUAY_TOKEN=$(cat ${RHACM_DEPLOY_PATH}/prereqs/pull-secret.yaml | grep "\.dockerconfigjson" | sed 's/.*\.dockerconfigjson: //' | base64 --decode | sed "s/quay\.io/quay\.io:443/g")
+if [[ "${DOWNSTREAM}" == "true" ]] || [[ "${INSTALL_ICSP}" == "true" ]]; then
+  if [[ -z "${QUAY_TOKEN}" ]]; then
+    DOWNSTREAM_QUAY_TOKEN=$(cat ${RHACM_DEPLOY_PATH}/prereqs/pull-secret.yaml | grep "\.dockerconfigjson" | sed 's/.*\.dockerconfigjson: //')
+  else
+    DOWNSTREAM_QUAY_TOKEN=${QUAY_TOKEN}
+  fi
+  DOWNSTREAM_QUAY_TOKEN=$(echo ${DOWNSTREAM_QUAY_TOKEN} | base64 --decode | sed "s/quay\.io/quay\.io:443/g")
   OPENSHIFT_PULL_SECRET=$(oc get -n openshift-config secret pull-secret -o jsonpath='{.data.\.dockerconfigjson}' | base64 --decode)
-  FULL_TOKEN="${QUAY_TOKEN}${OPENSHIFT_PULL_SECRET}"
+  FULL_TOKEN="${DOWNSTREAM_QUAY_TOKEN}${OPENSHIFT_PULL_SECRET}"
+  if [[ "${DOWNSTREAM}" == "true" ]]; then
+    printlog info "Setting up for downstream deployment"
+    export COMPOSITE_BUNDLE=true
+    export CUSTOM_REGISTRY_REPO="quay.io:443/acm-d"
+    export QUAY_TOKEN=${DOWNSTREAM_QUAY_TOKEN}
+  else
+    printlog info "Installing ICSP"
+  fi
   printlog info "Updating Openshift pull-secret in namespace openshift-config with a token for quay.io:433"
   oc set data secret/pull-secret -n openshift-config --from-literal=.dockerconfigjson="$(jq -s '.[0] * .[1]' <<<${FULL_TOKEN})"
   printlog info "Applying downstream resources (including ImageContentSourcePolicy to point to downstream repo)"
@@ -274,6 +284,7 @@ oc config set-context --current --namespace=open-cluster-management
 
 # Configure auth to allow requests from localhost
 if [[ -n "${AUTH_REDIRECT_PATHS}" ]]; then
+  AUTH_REDIRECT_PATHS=( $(echo "$AUTH_REDIRECT_PATHS") )
   printlog title "Waiting for ingress to be running to configure localhost connections"
   ATTEMPTS=0
   MAX_ATTEMPTS=15
