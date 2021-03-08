@@ -37,7 +37,7 @@ spec:
             - /bin/sh
             args:
             - -c
-            - date; for pool in \$(kubectl get clusterpool -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o name); do kubectl patch \${pool} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --type merge --patch '{"spec":{"size":${CLUSTERPOOL_MAX}}}'; done
+            - date; for pool in \$(kubectl get clusterpool.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o name); do kubectl patch \${pool} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --type merge --patch '{"spec":{"size":${CLUSTERPOOL_MAX}}}'; done
           restartPolicy: OnFailure
 EOF
 
