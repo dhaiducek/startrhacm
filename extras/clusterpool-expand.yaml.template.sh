@@ -2,14 +2,14 @@
 
 set -e
 
-# Patches all ClusterPools to grow to CLUSTERPOOL_MAX (default: 2) at 6 AM EST (11 AM UTC) Monday - Friday
+# Patches all ClusterPools to grow to CLUSTERPOOL_MAX (default: 1) at 6 AM EST (11 AM UTC) Monday - Friday
 
-CLUSTERPOOL_MAX=${CLUSTERPOOL_MAX:-2}
+CLUSTERPOOL_MAX=${CLUSTERPOOL_MAX:-1}
 
 echo "Using exports (if there's no output, please set these variables and try again):"
-echo "* SERVICE_ACCOUNT_NAME: ${SERVICE_ACCOUNT_NAME}"
-echo "* CLUSTERPOOL_TARGET_NAMESPACE: ${CLUSTERPOOL_TARGET_NAMESPACE}"
-echo "* CLUSTERPOOL_MAX: ${CLUSTERPOOL_MAX}"
+echo "* SERVICE_ACCOUNT_NAME: ${SERVICE_ACCOUNT_NAME:-<enter-service-account>}"
+echo "* CLUSTERPOOL_TARGET_NAMESPACE: ${CLUSTERPOOL_TARGET_NAMESPACE:-<enter-namespace>}"
+echo "* CLUSTERPOOL_MIN: ${CLUSTERPOOL_MIN}"
 
 cat >clusterpool-expand.yaml <<EOF
 apiVersion: batch/v1beta1
@@ -31,13 +31,13 @@ spec:
           serviceAccountName: ${SERVICE_ACCOUNT_NAME}
           containers:
           - name: clusterpool-expand
-            image: bitnami/kubectl:latest
+            image: quay.io/openshift/origin-cli:latest
             imagePullPolicy: IfNotPresent
             command: 
             - /bin/sh
             args:
             - -c
-            - date; for pool in \$(kubectl get clusterpool.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o name); do kubectl patch \${pool} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --type merge --patch '{"spec":{"size":${CLUSTERPOOL_MAX}}}'; done
+            - date; oc scale clusterpool -n ${CLUSTERPOOL_TARGET_NAMESPACE} --all --replicas=${CLUSTERPOOL_MAX}
           restartPolicy: OnFailure
 EOF
 

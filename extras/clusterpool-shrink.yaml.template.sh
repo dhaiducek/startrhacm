@@ -2,13 +2,13 @@
 
 set -e
 
-# Patches all ClusterPools to shrink to CLUSTERPOOL_MAX (default: 1) at 8 PM EST (1 AM UTC) every day
+# Patches all ClusterPools to shrink to CLUSTERPOOL_MAX (default: 0) at 8 PM EST (1 AM UTC) every day
 
-CLUSTERPOOL_MIN=${CLUSTERPOOL_MIN:-1}
+CLUSTERPOOL_MIN=${CLUSTERPOOL_MIN:-0}
 
 echo "Using exports (if there's no output, please set these variables and try again):"
-echo "* SERVICE_ACCOUNT_NAME: ${SERVICE_ACCOUNT_NAME}"
-echo "* CLUSTERPOOL_TARGET_NAMESPACE: ${CLUSTERPOOL_TARGET_NAMESPACE}"
+echo "* SERVICE_ACCOUNT_NAME: ${SERVICE_ACCOUNT_NAME:-<enter-service-account>}"
+echo "* CLUSTERPOOL_TARGET_NAMESPACE: ${CLUSTERPOOL_TARGET_NAMESPACE:-<enter-namespace>}"
 echo "* CLUSTERPOOL_MIN: ${CLUSTERPOOL_MIN}"
 
 cat >clusterpool-shrink.yaml <<EOF
@@ -31,13 +31,13 @@ spec:
           serviceAccountName: ${SERVICE_ACCOUNT_NAME}
           containers:
           - name: clusterpool-shrink
-            image: bitnami/kubectl:latest
+            image: quay.io/openshift/origin-cli:latest
             imagePullPolicy: IfNotPresent
             command: 
             - /bin/sh
             args:
             - -c
-            - date; for pool in \$(kubectl get clusterpool.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o name); do kubectl patch \${pool} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --type merge --patch '{"spec":{"size":${CLUSTERPOOL_MIN}}}'; done
+            - date; oc scale clusterpool -n ${CLUSTERPOOL_TARGET_NAMESPACE} --all --replicas=${CLUSTERPOOL_MIN}
           restartPolicy: OnFailure
 EOF
 
