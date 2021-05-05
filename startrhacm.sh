@@ -100,7 +100,7 @@ if [[ "${CLUSTERPOOL_RESIZE}" == "true" ]] && [[ -n "${CLUSTERPOOL_NAME}" ]] && 
         exit 1
       fi
       printlog info "The ClusterPool is entirely claimed. Patching the ClusterPool to increase the size of the pool."
-      oc patch clusterpool.hive ${CLUSTERPOOL_NAME} --type merge --patch '{"spec":{"size":'$((NUM_CLAIMS+1))'}}'
+      oc scale clusterpool.hive ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --replicas=$((NUM_CLAIMS+1))
     fi
   fi
 fi
@@ -115,9 +115,9 @@ git pull &>/dev/null
 # Set lifetime of claim to end of work day
 if [[ -n "${CLUSTERCLAIM_END_TIME}" ]]; then
   printlog info "Setting CLUSTERCLAIM_LIFETIME to end at hour ${CLUSTERCLAIM_END_TIME} of a 24 hour clock"
-  if [[ -n "${CLUSTERCLAIM_NAME}" ]] && (oc get clusterclaim.hive "${CLUSTERCLAIM_NAME}" &>/dev/null); then
+  if [[ -n "${CLUSTERCLAIM_NAME}" ]] && (oc get clusterclaim.hive "${CLUSTERCLAIM_NAME}" -n ${CLUSTERPOOL_TARGET_NAMESPACE} &>/dev/null); then
     printlog error "Found existing claim with name ${CLUSTERCLAIM_NAME}, so its lifetime (which is based on its creation time) will not be recalculated."
-    export CLUSTERCLAIM_LIFETIME=$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -o jsonpath='{.spec.lifetime}')
+    export CLUSTERCLAIM_LIFETIME=$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath='{.spec.lifetime}')
     printlog error "Using claim's existing lifetime of ${CLUSTERCLAIM_LIFETIME}. If a different lifetime is desired, please manually edit the claim."
   else
     export CLUSTERCLAIM_LIFETIME="$((${CLUSTERCLAIM_END_TIME}-$(date "+%-H")-1))h$((60-$(date "+%-M")))m"
@@ -133,7 +133,7 @@ else
 fi
 # Set namespace context in case it wasn't set or we're inside a pod specifying a different namespace in env
 oc config set-context --current --namespace=default
-# Try twice to deploy 
+# Verify cluster access
 ATTEMPTS=0
 MAX_ATTEMPTS=15
 INTERVAL=20
@@ -267,6 +267,7 @@ ATTEMPTS=0
 MAX_ATTEMPTS=1
 INTERVAL=30
 FAILED="false"
+export TARGET_NAMESPACE=${TARGET_NAMESPACE:-"open-cluster-management"}
 while (! ./start.sh --silent) && FAILED="true" && (( ATTEMPTS != MAX_ATTEMPTS )); do
   printlog error "RHACM deployment failed. Trying again in ${INTERVAL}s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
   sleep ${INTERVAL}
@@ -279,8 +280,8 @@ if [[ "${FAILED}" == "true" ]]; then
 fi
 
 # Set CLI to point to RHACM namespace
-printlog title "Setting oc CLI context to open-cluster-management namespace"
-oc config set-context --current --namespace=open-cluster-management
+printlog title "Setting oc CLI context to ${TARGET_NAMESPACE} namespace"
+oc config set-context --current --namespace=${TARGET_NAMESPACE}
 
 # Configure auth to allow requests from localhost
 if [[ -n "${AUTH_REDIRECT_PATHS}" ]]; then
