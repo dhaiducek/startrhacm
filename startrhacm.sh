@@ -87,20 +87,15 @@ else
   fi
 fi
 
-# Check to see whether there are available clusters in the ClusterPool specified
-if [[ "${CLUSTERPOOL_RESIZE}" == "true" ]] && [[ -n "${CLUSTERPOOL_NAME}" ]] && [[ -n "${CLUSTERPOOL_TARGET_NAMESPACE}" ]]; then
+# Check to see whether the ClusterPool meets the minimum size
+if [[ -n "${CLUSTERPOOL_MIN_SIZE}" ]] && [[ -n "${CLUSTERPOOL_NAME}" ]] && [[ -n "${CLUSTERPOOL_TARGET_NAMESPACE}" ]]; then
   # If a ClusterClaim name was specified and it already exists, we'll continue on without checking pool size since it'll patch it
   if [[ -z "${CLUSTERCLAIM_NAME}" ]] || ( [[ -n "${CLUSTERCLAIM_NAME}" ]] && (! oc get clusterclaim.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE} ${CLUSTERCLAIM_NAME} &>/dev/null) ); then
-    printlog title "Checking for available claims in ClusterPool ${CLUSTERPOOL_NAME}"
-    NUM_CLAIMS=$(oc get clusterclaim.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o custom-columns='CLUSTERPOOL:.spec.clusterPoolName' --no-headers | grep "${CLUSTERPOOL_NAME}" | wc -l)
+    printlog title "Checking for pool size for ClusterPool ${CLUSTERPOOL_NAME}"
     POOL_SIZE=$(oc get clusterpool.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE} ${CLUSTERPOOL_NAME} -o jsonpath={.spec.size})
-    if (( NUM_CLAIMS >= POOL_SIZE )); then
-      if [[ -n "${CLUSTERPOOL_MAX_CLUSTERS}" ]] && (( NUM_CLAIMS >= CLUSTERPOOL_MAX_CLUSTERS )); then
-        printlog error "Found $((NUM_CLAIMS)) ClusterClaims for this pool, which is at or above the requested maximum of ${CLUSTERPOOL_MAX_CLUSTERS} clusters. Please delete claims, increase the maximum, or choose a different pool. Exiting."
-        exit 1
-      fi
-      printlog info "The ClusterPool is entirely claimed. Patching the ClusterPool to increase the size of the pool."
-      oc scale clusterpool.hive ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --replicas=$((NUM_CLAIMS+1))
+    if (( POOL_SIZE < CLUSTERPOOL_MIN_SIZE )); then
+      printlog info "The ClusterPool size ${POOL_SIZE} does not meet the minimum of ${CLUSTERPOOL_MIN_SIZE}. Patching the ClusterPool to increase the size of the pool."
+      oc scale clusterpool.hive ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --replicas=${CLUSTERPOOL_MIN_SIZE}
     fi
   fi
 fi
