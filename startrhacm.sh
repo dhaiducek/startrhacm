@@ -308,6 +308,12 @@ if [[ -n "${AUTH_REDIRECT_PATHS}" ]]; then
   fi
 fi
 
+# Set ClusterPool to target size post-deployment
+if [[ -n "${CLUSTERPOOL_POST_DEPLOY_SIZE}" ]]; then
+  printlog info "Scaling ClusterPool ${CLUSTERPOOL_NAME} to ${CLUSTERPOOL_POST_DEPLOY_SIZE}"
+  oc scale clusterpool.hive ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --replicas=${CLUSTERPOOL_POST_DEPLOY_SIZE}
+fi
+
 printlog title "Information for claimed RHACM cluster (Note: RHACM may be completing final installation steps):"
 printlog info "Set KUBECONFIG:\n  export KUBECONFIG=$(echo ${KUBECONFIG})"
 printlog info "Lifeguard ClusterClaim directory (containing cluster details and more):\n  cd $(echo ${KUBECONFIG} | sed 's/kubeconfig//')"
