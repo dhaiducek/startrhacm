@@ -311,6 +311,7 @@ fi
 # Set ClusterPool to target size post-deployment
 if [[ -n "${CLUSTERPOOL_POST_DEPLOY_SIZE}" ]]; then
   printlog info "Scaling ClusterPool ${CLUSTERPOOL_NAME} to ${CLUSTERPOOL_POST_DEPLOY_SIZE}"
+  unset KUBECONFIG
   oc scale clusterpool.hive ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --replicas=${CLUSTERPOOL_POST_DEPLOY_SIZE}
 fi
 
