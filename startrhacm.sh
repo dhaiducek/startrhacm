@@ -120,6 +120,8 @@ if [[ -n "${CLUSTERCLAIM_END_TIME}" ]]; then
 fi
 ./apply.sh
 printlog title "Setting KUBECONFIG and checking cluster access"
+# Save the current KUBECONFIG in case we need it
+PREVIOUS_KUBECONFIG=${KUBECONFIG}
 # If we have a ClusterClaim name, use that to get the kubeconfig, otherwise just get the most recently modified (which is most likely the one we need)
 if [[ -n "${CLUSTERCLAIM_NAME}" ]]; then
   export KUBECONFIG=$(ls ${CLAIM_DIR}/${CLUSTERCLAIM_NAME}/kubeconfig)
@@ -311,7 +313,7 @@ fi
 # Set ClusterPool to target size post-deployment
 if [[ -n "${CLUSTERPOOL_POST_DEPLOY_SIZE}" ]]; then
   printlog info "Scaling ClusterPool ${CLUSTERPOOL_NAME} to ${CLUSTERPOOL_POST_DEPLOY_SIZE}"
-  unset KUBECONFIG
+  export KUBECONFIG=${PREVIOUS_KUBECONFIG}
   oc scale clusterpool.hive ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --replicas=${CLUSTERPOOL_POST_DEPLOY_SIZE}
 fi
 
