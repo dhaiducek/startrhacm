@@ -38,7 +38,7 @@ spec:
             args:
             - -c
             - date; oc scale clusterpool -n ${CLUSTERPOOL_TARGET_NAMESPACE} --all --replicas=${CLUSTERPOOL_MAX}
-          restartPolicy: OnFailure
+          restartPolicy: Never
 EOF
 
 echo ""

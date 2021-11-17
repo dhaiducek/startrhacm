@@ -2,20 +2,19 @@
 
 set -e
 
-# Patches all ClusterPools to shrink to CLUSTERPOOL_MAX (default: 0) at 8 PM EST (1 AM UTC) every day
-
-CLUSTERPOOL_MIN=${CLUSTERPOOL_MIN:-0}
+# Patches all ClusterClaims (except those matching the pipe-separated filter) to hibernate at
+#  8 PM EST (1 AM UTC) every day
 
 echo "Using exports (if there's no output, please set these variables and try again):"
 echo "* SERVICE_ACCOUNT_NAME: ${SERVICE_ACCOUNT_NAME:-<enter-service-account>}"
 echo "* CLUSTERPOOL_TARGET_NAMESPACE: ${CLUSTERPOOL_TARGET_NAMESPACE:-<enter-namespace>}"
-echo "* CLUSTERPOOL_MIN: ${CLUSTERPOOL_MIN}"
+echo "* EXCLUSION_FILTER: ${EXCLUSION_FILTER}"
 
-cat >clusterpool-shrink.yaml <<EOF
+cat >clusterclaim-hibernate.yaml <<EOF
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: clusterpool-shrink
+  name: clusterclaim-hibernate
 spec:
 #            ┌────────────── minute (0 - 59)
 #            │ ┌────────────── hour (0 - 23) (Time in UTC)
@@ -30,18 +29,21 @@ spec:
         spec:
           serviceAccountName: ${SERVICE_ACCOUNT_NAME}
           containers:
-          - name: clusterpool-shrink
+          - name: clusterclaim-hibernate
             image: quay.io/openshift/origin-cli:latest
             imagePullPolicy: IfNotPresent
             command: 
             - /bin/sh
             args:
             - -c
-            - date; oc scale clusterpool -n ${CLUSTERPOOL_TARGET_NAMESPACE} --all --replicas=${CLUSTERPOOL_MIN}
+            - "date; for DEPLOYMENT in \$(oc get clusterclaims.hive -n $CLUSTERPOOL_TARGET_NAMESPACE --no-headers -o custom-columns=NAME:metadata.name,DEPLOYMENT:spec.namespace | awk '!/('\$EXCLUSION_FILTER')/ {print \$2}'); do oc patch clusterdeployment \$DEPLOYMENT -n \$DEPLOYMENT --type='merge' -p $'spec:\\\n powerState: Hibernating'; done"
+            env:
+            - name: EXCLUSION_FILTER
+              value: "${EXCLUSION_FILTER}"
           restartPolicy: Never
 EOF
 
 echo ""
-echo "CronJob YAML created!"
+echo "CronJob YAML created! "
 echo "* To apply to the ClusterPool cluster:"
-echo "oc apply -n ${CLUSTERPOOL_TARGET_NAMESPACE} -f clusterpool-shrink.yaml"
+echo "oc apply -n ${CLUSTERPOOL_TARGET_NAMESPACE} -f clusterclaim-hibernate.yaml"
