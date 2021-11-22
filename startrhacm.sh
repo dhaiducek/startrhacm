@@ -150,7 +150,7 @@ printlog title "Getting snapshot for RHACM (defaults to latest version -- overri
 cd ${RHACM_PIPELINE_PATH}
 git pull &>/dev/null
 RHACM_BRANCH=${RHACM_BRANCH:-$(echo "${RHACM_VERSION}" | grep -o "[[:digit:]]\+\.[[:digit:]]\+" || true)} # Create Pipeline branch from version, if specified
-BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-9]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
+BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
 
 # Get latest downstream snapshot from Quay if DOWNSTREAM is set to "true"
 if [[ "${DOWNSTREAM}" == "true" ]]; then
