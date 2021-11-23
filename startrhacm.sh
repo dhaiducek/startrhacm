@@ -188,7 +188,7 @@ else
     if (! ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* &>/dev/null); then
       printlog error "The branch, ${BRANCH}-${PIPELINE_PHASE}, doesn't appear to have any snapshots/manifest-* files to parse a snapshot from."
       if [[ -z "${RHACM_BRANCH}" ]]; then
-        BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-9]\+\.[0-9]\+-" | sort -uV | tail -2 | head -1 | grep -o "[0-9]\+\.[0-9]\+")}
+        BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -2 | head -1 | grep -o "[0-9]\+\.[0-9]\+")}
         printlog info "RHACM_BRANCH was not set. Using an older branch: ${BRANCH}-${PIPELINE_PHASE}"
         git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
         git pull &>/dev/null
