@@ -20,10 +20,10 @@ Deploy Red Hat Advanced Cluster Management (RHACM) via ClusterPool
 
 ### Clone the following repos:
 
-- [Lifeguard](https://github.com/open-cluster-management/lifeguard) - Collection of scripts to claim from ClusterPools
-- [Deploy](https://github.com/open-cluster-management/deploy) - Installation scripts for RHACM
-  - _Be sure to set up your pull secret for Deploy ([see Deploy documentation](https://github.com/open-cluster-management/deploy#prepare-to-deploy-open-cluster-management-instance-only-do-once))_
-- [Pipeline](https://github.com/open-cluster-management/pipeline/) - Collection of available RHACM snapshots (private repo)
+- [Lifeguard](https://github.com/stolostron/lifeguard) - Collection of scripts to claim from ClusterPools
+- [Deploy](https://github.com/stolostron/deploy) - Installation scripts for RHACM
+  - _Be sure to set up your pull secret for Deploy ([see Deploy documentation](https://github.com/stolostron/deploy#prepare-to-deploy-open-cluster-management-instance-only-do-once))_
+- [Pipeline](https://github.com/stolostron/pipeline/) - Collection of available RHACM snapshots (private repo)
   - _Exception: Pipeline is not necessary if the full snapshot is provided via RHACM_SNAPSHOT_
 
 ### Setup config scripts
