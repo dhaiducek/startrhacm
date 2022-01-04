@@ -217,7 +217,7 @@ git checkout master &>/dev/null
 git pull &>/dev/null
 echo "${RHACM_SNAPSHOT}" > ${RHACM_DEPLOY_PATH}/snapshot.ver
 if (! ls ${RHACM_DEPLOY_PATH}/prereqs/pull-secret.yaml &>/dev/null) && [[ -z "${QUAY_TOKEN}" ]]; then
-  printlog error "Error finding pull secret in deploy repo. Please consult https://github.com/open-cluster-management/deploy on how to set it up."
+  printlog error "Error finding pull secret in deploy repo. Please consult https://github.com/stolostron/deploy on how to set it up."
   exit 1
 fi
 # Deploy necessary downstream resources if required
