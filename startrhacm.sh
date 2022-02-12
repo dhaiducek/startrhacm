@@ -2,6 +2,12 @@
 
 set -e
 
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+BASE64="base64 -w 0"
+if [ "${OS}" == "darwin" ]; then
+    BASE64="base64"
+fi
+
 # Helper function to format logs
 function printlog() {
   case ${1} in
@@ -234,7 +240,7 @@ if [[ "${DOWNSTREAM}" == "true" ]] || [[ "${INSTALL_ICSP}" == "true" ]]; then
     printlog info "Setting up for downstream deployment"
     export COMPOSITE_BUNDLE=true
     export CUSTOM_REGISTRY_REPO="quay.io:443/acm-d"
-    export QUAY_TOKEN=${DOWNSTREAM_QUAY_TOKEN}
+    export QUAY_TOKEN=$(echo ${DOWNSTREAM_QUAY_TOKEN} | ${BASE64})
   else
     printlog info "Installing ICSP"
   fi
