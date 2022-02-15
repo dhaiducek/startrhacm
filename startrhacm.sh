@@ -153,10 +153,7 @@ fi
 
 # Get snapshot
 printlog title "Getting snapshot for RHACM (defaults to latest version -- override version with RHACM_VERSION)"
-cd ${RHACM_PIPELINE_PATH}
-git pull &>/dev/null
 RHACM_BRANCH=${RHACM_BRANCH:-$(echo "${RHACM_VERSION}" | grep -o "[[:digit:]]\+\.[[:digit:]]\+" || true)} # Create Pipeline branch from version, if specified
-BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
 
 # Get latest downstream snapshot from Quay if DOWNSTREAM is set to "true"
 if [[ "${DOWNSTREAM}" == "true" ]]; then
@@ -170,7 +167,7 @@ if [[ "${DOWNSTREAM}" == "true" ]]; then
   HAS_ADDITIONAL="true"
   i=0
   while [[ "${HAS_ADDITIONAL}" == "true" ]] && [[ -z "${RHACM_SNAPSHOT}" ]]; do
-    ((i++))
+    ((i=i+1))
     HAS_ADDITIONAL=$(curl -s "https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.has_additional')
     RHACM_SNAPSHOT=$(curl -s "https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.tags[].name' | grep -v "nonesuch\|-$" | grep "${USER_SNAPSHOT}" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
   done
@@ -186,6 +183,8 @@ else
   if [[ -z "${RHACM_SNAPSHOT}" ]]; then
     printlog info "Getting upstream snapshot"
     cd ${RHACM_PIPELINE_PATH}
+    git pull &>/dev/null
+    BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
     VERSION_NUM=${RHACM_VERSION:=""}
     PIPELINE_PHASE=${PIPELINE_PHASE:-"edge"}
     printlog info "Updating repo and switching to the ${BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
