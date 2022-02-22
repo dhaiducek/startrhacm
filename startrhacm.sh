@@ -186,7 +186,19 @@ else
     git pull &>/dev/null
     BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
     VERSION_NUM=${RHACM_VERSION:=""}
-    PIPELINE_PHASE=${PIPELINE_PHASE:-"edge"}
+    PIPELINE_PHASE=${PIPELINE_PHASE:-"dev"}
+    # Handle older pipeline phases
+    if [[ "${BRANCH}" == "2."[0-4] ]]; then
+      case "${PIPELINE_PHASE}" in
+        dev|nightly)
+          PIPELINE_PHASE="edge"
+          ;;
+        preview)
+          PIPELINE_PHASE="stable"
+          ;;
+      esac
+    elif
+    fi
     printlog info "Updating repo and switching to the ${BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
     git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
     git pull &>/dev/null
