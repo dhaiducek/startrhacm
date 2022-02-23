@@ -197,7 +197,6 @@ else
           PIPELINE_PHASE="stable"
           ;;
       esac
-    elif
     fi
     printlog info "Updating repo and switching to the ${BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
     git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
