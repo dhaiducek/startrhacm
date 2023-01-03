@@ -55,6 +55,39 @@ function checkexports() {
   fi
 }
 
+# Helper function to query Quay for snapshot tags
+function queryquay() {
+  QUAY_ORGANIZATION=${1}
+  printlog info "Searching Quay for tag ${RHACM_SNAPSHOT}"
+
+  # Store user-specified snapshot for logging
+  if [[ -n "${RHACM_SNAPSHOT}" ]]; then
+    USER_SNAPSHOT="${RHACM_SNAPSHOT}"
+    RHACM_SNAPSHOT=""
+  fi
+
+  # Iterate over the all the pages of the repo
+  HAS_ADDITIONAL="true"
+  i=0
+  while [[ "${HAS_ADDITIONAL}" == "true" ]] && [[ -z "${RHACM_SNAPSHOT}" ]]; do
+    ((i=i+1))
+    HAS_ADDITIONAL=$(curl -s "https://quay.io/api/v1/repository/${QUAY_ORGANIZATION}/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.has_additional')
+    SNAPSHOT_TAGS=$(curl -s "https://quay.io/api/v1/repository/${QUAY_ORGANIZATION}/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}&specificTag=${USER_SNAPSHOT}" | jq -r '.tags[].name')
+
+    if [[ -z "${SNAPSHOT_TAGS}" ]]; then
+      break
+    fi
+
+    RHACM_SNAPSHOT=$(echo ${SNAPSHOT_TAGS} | grep -v "nonesuch\|-$" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
+  done
+  
+  if [[ -z "${RHACM_SNAPSHOT}" ]]; then
+    printlog error "Error querying snapshot list--nothing was returned. Please check https://quay.io/api/v1/repository/${QUAY_ORGANIZATION}/acm-custom-registry/tag/, your network connection, and any conflicts in your exports:"
+    printlog error "Query used: RHACM_SNAPSHOT: '${USER_SNAPSHOT}' RHACM_VERSION: '${RHACM_VERSION}' RHACM_BRANCH '${RHACM_BRANCH}'"
+    return 1
+  fi
+}
+
 # Load configuration
 printlog title "Loading configuration from utils/config.sh"
 SCRIPT_DIR=$(dirname "${BASH_SOURCE[0]}")
@@ -158,25 +191,7 @@ RHACM_BRANCH=${RHACM_BRANCH:-$(echo "${RHACM_VERSION}" | grep -o "[[:digit:]]\+\
 # Get latest downstream snapshot from Quay if DOWNSTREAM is set to "true"
 if [[ "${DOWNSTREAM}" == "true" ]]; then
   printlog info "Getting downstream snapshot"
-  # Store user-specified snapshot for logging
-  if [[ -n "${RHACM_SNAPSHOT}" ]]; then
-    USER_SNAPSHOT="${RHACM_SNAPSHOT}"
-    RHACM_SNAPSHOT=""
-  fi
-  # Iterate over the all the pages of the repo
-  HAS_ADDITIONAL="true"
-  i=0
-  while [[ "${HAS_ADDITIONAL}" == "true" ]] && [[ -z "${RHACM_SNAPSHOT}" ]]; do
-    ((i=i+1))
-    HAS_ADDITIONAL=$(curl -s "https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.has_additional')
-    RHACM_SNAPSHOT=$(curl -s "https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.tags[].name' | grep -v "nonesuch\|-$" | grep "${USER_SNAPSHOT}" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
-  done
-  
-  if [[ -z "${RHACM_SNAPSHOT}" ]]; then
-    printlog error "Error querying snapshot list--nothing was returned. Please check https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/, your network connection, and any conflicts in your exports:"
-    printlog error "Query used: RHACM_SNAPSHOT: '${USER_SNAPSHOT}' RHACM_VERSION: '${RHACM_VERSION}' RHACM_BRANCH '${RHACM_BRANCH}'"
-    exit 1
-  fi
+  queryquay "acm-d"
 
 # If DOWNSTREAM is not "true", get snapshot from pipeline repo (defaults to latest edge version)
 else
@@ -213,14 +228,32 @@ else
         exit 1
       fi
     fi
-    MANIFEST_TAG=$(ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* | grep -F "${VERSION_NUM}" | tail -n 1 | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}.*")
-    SNAPSHOT_TAG=$(echo ${MANIFEST_TAG} | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}")
-    VERSION_NUM=$(echo ${MANIFEST_TAG} | grep -o "\([[:digit:]]\+\.\)\{2\}[[:digit:]]\+")
-    if [[ -n "${RHACM_VERSION}" && "${RHACM_VERSION}" != "${VERSION_NUM}" ]]; then
-      printlog error "There's an unexpected mismatch between the version provided, ${RHACM_VERSION}, and the version found, ${VERSION_NUM}. Please double check the Pipeline repo before continuing."
-      exit 1
-    fi
-    RHACM_SNAPSHOT="${VERSION_NUM}-SNAPSHOT-${SNAPSHOT_TAG}"
+    # Query Pipeline for snapshots--if the latest is not in Quay, try progressively older snapshots
+    ATTEMPTS=0
+    MAX_ATTEMPTS=5
+    FOUND="false"
+    while [[ "${FOUND}" == "false" ]] && (( ATTEMPTS != MAX_ATTEMPTS )); do
+      ((ATTEMPTS=ATTEMPTS+1))
+      MANIFEST_TAG=$(ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* | grep -F "${VERSION_NUM}" | tail -n ${ATTEMPTS} | head -n 1 | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}.*")
+      SNAPSHOT_TAG=$(echo ${MANIFEST_TAG} | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}")
+      VERSION_NUM=$(echo ${MANIFEST_TAG} | grep -o "\([[:digit:]]\+\.\)\{2\}[[:digit:]]\+")
+      if [[ -n "${RHACM_VERSION}" && "${RHACM_VERSION}" != "${VERSION_NUM}" ]]; then
+        printlog error "There's an unexpected mismatch between the version provided, ${RHACM_VERSION}, and the version found, ${VERSION_NUM}. Please double check the Pipeline repo before continuing."
+        exit 1
+      fi
+      RHACM_SNAPSHOT="${VERSION_NUM}-SNAPSHOT-${SNAPSHOT_TAG}"
+
+      # Query Quay for snapshot parsed from Pipeline
+      if ! queryquay "stolostron"; then
+        printlog error "The pipeline snapshot was not found in Quay. Trying an older snapshot."
+      else
+        FOUND="true"
+      fi
+    done
+  elif ! queryquay "stolostron"; then
+    # Fail if manually provided snapshot is not present in Quay
+    printlog error "The provided snapshot ${RHACM_SNAPSHOT} was not found in Quay."
+    exit 1
   fi
 fi
 printlog info "Using RHACM snapshot: ${RHACM_SNAPSHOT}"
