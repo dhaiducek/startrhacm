@@ -329,36 +329,6 @@ fi
 printlog title "Setting oc CLI context to ${TARGET_NAMESPACE} namespace"
 oc config set-context --current --namespace=${TARGET_NAMESPACE}
 
-# Configure auth to allow requests from localhost
-if [[ -n "${AUTH_REDIRECT_PATHS}" ]]; then
-  AUTH_REDIRECT_PATHS=( $(echo "$AUTH_REDIRECT_PATHS") )
-  printlog title "Waiting for ingress to be running to configure localhost connections"
-  ATTEMPTS=0
-  MAX_ATTEMPTS=15
-  INTERVAL=20
-  FAILED="false"
-  while (! oc get oauthclient multicloudingress) && FAILED="true" && (( ATTEMPTS != MAX_ATTEMPTS )); do
-    printlog error "Error finding ingress. Trying again in ${INTERVAL}s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
-    sleep ${INTERVAL}
-    FAILED="false"
-  done
-  if [[ "${FAILED}" == "true" ]]; then
-    printlog error "Ingress not patched. Please check your RHACM deployment."
-  else
-    REDIRECT_PATH_LIST=""
-    REDIRECT_START="https://localhost:3000/multicloud"
-    REDIRECT_END="auth/callback"
-    for i in ${!AUTH_REDIRECT_PATHS[@]}; do
-      REDIRECT_PATH_LIST+='"'"${REDIRECT_START}${AUTH_REDIRECT_PATHS[${i}]}${REDIRECT_END}"'"'
-      if (( i != ${#AUTH_REDIRECT_PATHS[@]}-1 )); then
-        REDIRECT_PATH_LIST+=', '
-      fi
-    done
-    oc patch oauthclient multicloudingress --patch "{\"redirectURIs\":[${REDIRECT_PATH_LIST}]}"
-    printlog info "Ingress patched with: ${REDIRECT_PATH_LIST}"
-  fi
-fi
-
 printlog title "Information for claimed RHACM cluster (Note: RHACM may be completing final installation steps):"
 printlog info "Set KUBECONFIG:\n  export KUBECONFIG=$(echo ${KUBECONFIG})"
 printlog info "Lifeguard ClusterClaim directory (containing cluster details and more):\n  cd $(echo ${KUBECONFIG} | sed 's/kubeconfig//')"
