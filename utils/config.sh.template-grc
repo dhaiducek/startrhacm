@@ -11,7 +11,6 @@ export RHACM_DEPLOY_PATH= # Path to local Deploy repo
 # User exports
 CLUSTERPOOL_USER=$(id -un)
 GROUP_NAME="policy-grc"
-export AUTH_REDIRECT_PATHS="/ /policies/ /header/ /topology/"
 
 # ClusterClaim exports
 export CLUSTERPOOL_TARGET_NAMESPACE="acm-grc-security"
