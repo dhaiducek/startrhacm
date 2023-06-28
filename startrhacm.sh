@@ -78,7 +78,11 @@ function queryquay() {
       break
     fi
 
-    RHACM_SNAPSHOT=$(echo ${SNAPSHOT_TAGS} | grep -v "nonesuch\|-$" | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
+    if [[ -n "${USER_SNAPSHOT}" ]]; then
+      RHACM_SNAPSHOT=$(echo "${SNAPSHOT_TAGS}" | head -n 1)
+    else
+      RHACM_SNAPSHOT=$(echo "${SNAPSHOT_TAGS}" | grep -v "^v\|nonesuch\|-$" | sort -r --version-sort | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
+    fi
   done
   
   if [[ -z "${RHACM_SNAPSHOT}" ]]; then
