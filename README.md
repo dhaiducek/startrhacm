@@ -8,7 +8,7 @@ Deploy Red Hat Advanced Cluster Management (RHACM) via ClusterPool
 
 ## Features
 
-- Claims an OpenShift cluster from a ClusterPool and deploys Upstream or Downstream RHACM of any available branch (x.x), version (x.x.x), or snapshot
+- Claims an OpenShift cluster from a ClusterPool and deploys Upstream or Downstream RHACM of any available branch (x.x), version (x.x.x), "traditional" snapshot, or "Konflux build"
 - (optional) Automatically resizes a specified pool if the pool isn't large enough
 - (optional) Patch the cluster to accept connections from localhost paths for development
 - `startrhacm.sh` can be aliased and run from anywhere on your computer:
@@ -18,9 +18,12 @@ Deploy Red Hat Advanced Cluster Management (RHACM) via ClusterPool
 
 ## Prerequisites
 
-### Clone the following repos:
+### Clone the following repo:
 
 - [Lifeguard](https://github.com/stolostron/lifeguard) - Collection of scripts to claim from ClusterPools
+
+#### These repos are required if deploying a "traditional" version:
+
 - [Deploy](https://github.com/stolostron/deploy) - Installation scripts for RHACM
   - _Be sure to set up your pull secret for Deploy ([see Deploy documentation](https://github.com/stolostron/deploy#prepare-to-deploy-open-cluster-management-instance-only-do-once))_
 - [Pipeline](https://github.com/stolostron/pipeline/) - Collection of available RHACM snapshots (private repo)
@@ -36,7 +39,7 @@ Exports are contained in a `config.sh` script (but they can also be exported out
   export RHACM_DEPLOY_PATH= # Path to local Deploy repo
   export RHACM_PIPELINE_PATH= # Path to local Pipeline repo (optional only if deploying downstream or RHACM_SNAPSHOT is specified directly)
   ```
-- Optionally configure other variables as indicated in the comments in [`utils/config.sh.template`](./utils/config.sh.template) (if optional variables are not provided, the `startrhacm.sh` script will prompt you for ClusterClaim options and will deploy the latest upstream RHACM snapshot)
+- Optionally configure other variables as indicated in the comments in [`utils/config.sh.template`](./utils/config.sh.template) (if optional variables are not provided, the `startrhacm.sh` script will prompt you for ClusterClaim options and will deploy the latest "traditional" upstream RHACM snapshot)
 - Set up file permissions for the config script to be executable
   ```bash
   chmod +x ./utils/config.sh
@@ -45,6 +48,10 @@ Exports are contained in a `config.sh` script (but they can also be exported out
 ### Configure `oc` CLI to point to the Collective cluster
 
 You'll need to be logged in to the Collective cluster that hosts ClusterPools. If you're not, `startrhacm.sh` will detect this and provide you with the [link to the login command](https://oauth-openshift.apps.collective.aws.red-chesterfield.com/oauth/token/request). (If you're using a different ClusterPool cluster, you can disable this check by setting `export DISABLE_CLUSTER_CHECK="true"`)
+
+### Supply a Quay token
+
+If you are deploying a "Konflux" build, you must export `QUAY_TOKEN` with a base64-encoded dockerconfig with access to `quay.io/acm-d`.
 
 ### Squad-specific `config.sh` Templates
 
