@@ -46,7 +46,7 @@ function checkexports() {
       exit 1
     fi
     if [[ "${ACM_CATALOG_TAG:0:7}" == "latest-" ]]; then
-      ACM_CHANNEL=${ACM_CHANNEL:-"${ACM_CATALOG_TAG:0:11}"} # Take first 11 characters from ACM_CATALOG_TAG ("latest-2.14" is 11 characters)
+      ACM_CHANNEL=${ACM_CHANNEL:-"release-${ACM_CATALOG_TAG:7:4}"}
     else
       if [[ -z "${ACM_CHANNEL}" ]]; then
         printlog error "ACM_CHANNEL must be set if it can not be inferred from ACM_CATALOG_TAG"
@@ -276,6 +276,7 @@ EOF
   ATTEMPTS=0
   MAX_ATTEMPTS=10
   INTERVAL=60
+  sleep 30
   while [[ "${READY}" == "false" ]] && (( ATTEMPTS != MAX_ATTEMPTS )); do
     PODS=$(oc get pods -n openshift-marketplace --no-headers | grep -v "Running\|Completed" || true)
     if [[ -n "${PODS}" ]]; then
@@ -324,8 +325,9 @@ EOF
   ATTEMPTS=0
   MAX_ATTEMPTS=5
   INTERVAL=60
+  sleep 30
   while [[ "${READY}" == "false" ]] && (( ATTEMPTS != MAX_ATTEMPTS )); do
-    CSVS=$(oc get csv -n "${ACM_KONF_NAMESPACE}" --no-headers | grep -v "Succeeded" || true)
+    CSVS=$(oc get csv -n "${TARGET_NAMESPACE}" --no-headers | grep -v "Succeeded" || true)
     if [[ -n "${CSVS}" ]]; then
       echo "${CSVS}"
       printlog error "Waiting another ${INTERVAL}s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
@@ -336,6 +338,7 @@ EOF
   done
 
   LOCAL_CLUSTER_NAME=${LOCAL_CLUSTER_NAME:-"local-cluster"}
+  sleep 30
   printlog info "Creating the MultiClusterHub with LOCAL_CLUSTER_NAME=${LOCAL_CLUSTER_NAME}"
   oc apply -f - <<EOF
 apiVersion: operator.open-cluster-management.io/v1
@@ -352,8 +355,9 @@ EOF
   ATTEMPTS=0
   MAX_ATTEMPTS=15
   INTERVAL=60
+  sleep 30
   while [[ "${READY}" == "false" ]] && (( ATTEMPTS != MAX_ATTEMPTS )); do
-    MCHS=$(oc get multiclusterhub -n "${ACM_KONF_NAMESPACE}" --no-headers | grep -v "Running" || true)
+    MCHS=$(oc get multiclusterhub -n "${TARGET_NAMESPACE}" --no-headers | grep -v "Running" || true)
     if [[ -n "${MCHS}" ]]; then
       echo "${MCHS}"
       printlog error "Waiting another ${INTERVAL}s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
