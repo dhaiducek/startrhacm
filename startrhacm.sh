@@ -30,7 +30,7 @@ function checkexports() {
     printlog error "LIFEGUARD_PATH not defined. Please set LIFEGUARD_PATH to the local path of the Lifeguard repo."
     exit 1
   else
-    if (! ls ${LIFEGUARD_PATH} &>/dev/null); then
+    if (! ls "${LIFEGUARD_PATH}" &>/dev/null); then
       printlog error "Error getting to Lifeguard repo. Is LIFEGUARD_PATH set properly? Currently it's set to: ${LIFEGUARD_PATH}"
       exit 1
     fi
@@ -59,7 +59,7 @@ function checkexports() {
       printlog error "RHACM_PIPELINE_PATH not defined. Please set RHACM_PIPELINE_PATH to the local path of the Pipeline repo."
       exit 1
     else
-      if (! ls ${RHACM_PIPELINE_PATH} &>/dev/null); then
+      if (! ls "${RHACM_PIPELINE_PATH}" &>/dev/null); then
         printlog error "Error getting to Pipeline repo. Is RHACM_PIPELINE_PATH set properly? Currently it's set to: ${RHACM_PIPELINE_PATH}"
         exit 1
       fi
@@ -68,7 +68,7 @@ function checkexports() {
       printlog error "RHACM_DEPLOY_PATH not defined. Please set RHACM_DEPLOY_PATH to the local path of the Deploy repo."
       exit 1
     else
-      if (! ls ${RHACM_DEPLOY_PATH} &>/dev/null); then
+      if (! ls "${RHACM_DEPLOY_PATH}" &>/dev/null); then
         printlog error "Error getting to Deploy repo. Is RHACM_DEPLOY_PATH set properly? Currently it's set to: ${RHACM_DEPLOY_PATH}"
         exit 1
       fi
@@ -116,12 +116,12 @@ function queryquay() {
 # Load configuration
 printlog title "Loading configuration from utils/config.sh"
 SCRIPT_DIR=$(dirname "${BASH_SOURCE[0]}")
-if ls ${SCRIPT_DIR}/utils/config.sh &>/dev/null; then
-  if (! ${SCRIPT_DIR}/utils/config.sh); then
+if ls "${SCRIPT_DIR}"/utils/config.sh &>/dev/null; then
+  if (! "${SCRIPT_DIR}"/utils/config.sh); then
     printlog error "Error running configuration script. Is the script executable? If not, run: chmod +x ${SCRIPT_DIR}/utils/config.sh"
     exit 1
   else
-    source ${SCRIPT_DIR}/utils/config.sh
+    source "${SCRIPT_DIR}"/utils/config.sh
     checkexports
   fi
 else
@@ -154,12 +154,12 @@ fi
 # Check to see whether the ClusterPool meets the minimum size
 if [[ -n "${CLUSTERPOOL_MIN_SIZE}" ]] && [[ -n "${CLUSTERPOOL_NAME}" ]] && [[ -n "${CLUSTERPOOL_TARGET_NAMESPACE}" ]]; then
   # If a ClusterClaim name was specified and it already exists, we'll continue on without checking pool size since it'll patch it
-  if [[ -z "${CLUSTERCLAIM_NAME}" ]] || ( [[ -n "${CLUSTERCLAIM_NAME}" ]] && (! oc get clusterclaim.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE} ${CLUSTERCLAIM_NAME} &>/dev/null) ); then
+  if [[ -z "${CLUSTERCLAIM_NAME}" ]] || ( [[ -n "${CLUSTERCLAIM_NAME}" ]] && (! oc get clusterclaim.hive -n "${CLUSTERPOOL_TARGET_NAMESPACE}" "${CLUSTERCLAIM_NAME}" &>/dev/null) ); then
     printlog title "Checking for pool size for ClusterPool ${CLUSTERPOOL_NAME}"
-    POOL_SIZE=$(oc get clusterpool.hive -n ${CLUSTERPOOL_TARGET_NAMESPACE} ${CLUSTERPOOL_NAME} -o jsonpath={.spec.size})
+    POOL_SIZE=$(oc get clusterpool.hive -n "${CLUSTERPOOL_TARGET_NAMESPACE}" "${CLUSTERPOOL_NAME}" -o jsonpath={.spec.size})
     if (( POOL_SIZE < CLUSTERPOOL_MIN_SIZE )); then
       printlog info "The ClusterPool size ${POOL_SIZE} does not meet the minimum of ${CLUSTERPOOL_MIN_SIZE}. Patching the ClusterPool to increase the size of the pool."
-      oc scale clusterpool.hive ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --replicas=${CLUSTERPOOL_MIN_SIZE}
+      oc scale clusterpool.hive "${CLUSTERPOOL_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" --replicas="${CLUSTERPOOL_MIN_SIZE}"
     fi
   fi
 fi
@@ -167,16 +167,16 @@ fi
 # Claim cluster from ClusterPool
 printlog title "Creating ClusterClaim from ClusterPool ${CLUSTERPOOL_NAME}"
 CLAIM_DIR=${LIFEGUARD_PATH}/clusterclaims
-cd ${CLAIM_DIR}
+cd "${CLAIM_DIR}"
 printlog info "Switching to main branch and updating repo (if this exits, check the state of the local Lifeguard repo)"
 git checkout main &>/dev/null
 git pull &>/dev/null
 # Set lifetime of claim to end of work day
 if [[ -n "${CLUSTERCLAIM_END_TIME}" ]]; then
   printlog info "Setting CLUSTERCLAIM_LIFETIME to end at hour ${CLUSTERCLAIM_END_TIME} of a 24 hour clock"
-  if [[ -n "${CLUSTERCLAIM_NAME}" ]] && (oc get clusterclaim.hive "${CLUSTERCLAIM_NAME}" -n ${CLUSTERPOOL_TARGET_NAMESPACE} &>/dev/null); then
+  if [[ -n "${CLUSTERCLAIM_NAME}" ]] && (oc get clusterclaim.hive "${CLUSTERCLAIM_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" &>/dev/null); then
     printlog error "Found existing claim with name ${CLUSTERCLAIM_NAME}, so its lifetime (which is based on its creation time) will not be recalculated."
-    export CLUSTERCLAIM_LIFETIME=$(oc get clusterclaim.hive ${CLUSTERCLAIM_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} -o jsonpath='{.spec.lifetime}')
+    export CLUSTERCLAIM_LIFETIME=$(oc get clusterclaim.hive "${CLUSTERCLAIM_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" -o jsonpath='{.spec.lifetime}')
     printlog error "Using claim's existing lifetime of ${CLUSTERCLAIM_LIFETIME}. If a different lifetime is desired, please manually edit the claim."
   else
     export CLUSTERCLAIM_LIFETIME="$((${CLUSTERCLAIM_END_TIME}-$(date "+%-H")-1))h$((60-$(date "+%-M")))m"
@@ -189,9 +189,9 @@ printlog title "Setting KUBECONFIG and checking cluster access"
 PREVIOUS_KUBECONFIG=${KUBECONFIG}
 # If we have a ClusterClaim name, use that to get the kubeconfig, otherwise just get the most recently modified (which is most likely the one we need)
 if [[ -n "${CLUSTERCLAIM_NAME}" ]]; then
-  export KUBECONFIG=$(ls ${CLAIM_DIR}/${CLUSTERCLAIM_NAME}/kubeconfig)
+  export KUBECONFIG=$(ls "${CLAIM_DIR}"/"${CLUSTERCLAIM_NAME}"/kubeconfig)
 else
-  export KUBECONFIG=$(ls -dt1 ${CLAIM_DIR}/*/kubeconfig | head -n 1)
+  export KUBECONFIG=$(ls -dt1 "${CLAIM_DIR}"/*/kubeconfig | head -n 1)
 fi
 # Set namespace context in case it wasn't set or we're inside a pod specifying a different namespace in env
 oc config set-context --current --namespace=default
@@ -214,10 +214,10 @@ if [[ -n "${ACM_CATALOG_TAG}" ]]; then
   printlog title "Installing Konflux build"
 
   printlog info "Updating Openshift pull-secret in namespace openshift-config with a token for quay.io:433"
-  QUAY443_TOKEN=$(echo ${QUAY_TOKEN} | base64 --decode | sed "s/quay\.io/quay\.io:443/g")
+  QUAY443_TOKEN=$(echo "${QUAY_TOKEN}" | base64 --decode | sed "s/quay\.io/quay\.io:443/g")
   OPENSHIFT_PULL_SECRET=$(oc get -n openshift-config secret pull-secret -o jsonpath='{.data.\.dockerconfigjson}' | base64 --decode)
-  FULL_TOKEN="${A_QUAY_TOKEN}${OPENSHIFT_PULL_SECRET}"
-  oc set data secret/pull-secret -n openshift-config --from-literal=.dockerconfigjson="$(jq -s '.[0] * .[1]' <<<${FULL_TOKEN})"
+  FULL_TOKEN="${QUAY443_TOKEN}${OPENSHIFT_PULL_SECRET}"
+  oc set data secret/pull-secret -n openshift-config --from-literal=.dockerconfigjson="$(jq -s '.[0] * .[1]' <<<"${FULL_TOKEN}")"
 
   printlog info "Applying ImageDigestMirrorSet"
   oc apply -f - <<EOF
@@ -325,7 +325,7 @@ EOF
   MAX_ATTEMPTS=5
   INTERVAL=60
   while [[ "${READY}" == "false" ]] && (( ATTEMPTS != MAX_ATTEMPTS )); do
-    CSVS=$(oc get csv -n ${ACM_KONF_NAMESPACE} --no-headers | grep -v "Succeeded" || true)
+    CSVS=$(oc get csv -n "${ACM_KONF_NAMESPACE}" --no-headers | grep -v "Succeeded" || true)
     if [[ -n "${CSVS}" ]]; then
       echo "${CSVS}"
       printlog error "Waiting another ${INTERVAL}s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
@@ -353,7 +353,7 @@ EOF
   MAX_ATTEMPTS=15
   INTERVAL=60
   while [[ "${READY}" == "false" ]] && (( ATTEMPTS != MAX_ATTEMPTS )); do
-    MCHS=$(oc get multiclusterhub -n ${ACM_KONF_NAMESPACE} --no-headers | grep -v "Running" || true)
+    MCHS=$(oc get multiclusterhub -n "${ACM_KONF_NAMESPACE}" --no-headers | grep -v "Running" || true)
     if [[ -n "${MCHS}" ]]; then
       echo "${MCHS}"
       printlog error "Waiting another ${INTERVAL}s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
@@ -376,7 +376,7 @@ else
   else
     if [[ -z "${RHACM_SNAPSHOT}" ]]; then
       printlog info "Getting upstream snapshot"
-      cd ${RHACM_PIPELINE_PATH}
+      cd "${RHACM_PIPELINE_PATH}"
       git pull &>/dev/null
       BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
       VERSION_NUM=${RHACM_VERSION:=""}
@@ -393,14 +393,14 @@ else
         esac
       fi
       printlog info "Updating repo and switching to the ${BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
-      git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
+      git checkout "${BRANCH}"-"${PIPELINE_PHASE}" &>/dev/null
       git pull &>/dev/null
-      if (! ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* &>/dev/null); then
+      if (! ls "${RHACM_PIPELINE_PATH}"/snapshots/manifest-* &>/dev/null); then
         printlog error "The branch, ${BRANCH}-${PIPELINE_PHASE}, doesn't appear to have any snapshots/manifest-* files to parse a snapshot from."
         if [[ -z "${RHACM_BRANCH}" ]]; then
           BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -2 | head -1 | grep -o "[0-9]\+\.[0-9]\+")}
           printlog info "RHACM_BRANCH was not set. Using an older branch: ${BRANCH}-${PIPELINE_PHASE}"
-          git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
+          git checkout "${BRANCH}"-"${PIPELINE_PHASE}" &>/dev/null
           git pull &>/dev/null
         else
           printlog error "Please double check the Pipeline repo and set RHACM_BRANCH as needed."
@@ -413,9 +413,9 @@ else
       FOUND="false"
       while [[ "${FOUND}" == "false" ]] && (( ATTEMPTS != MAX_ATTEMPTS )); do
         ((ATTEMPTS=ATTEMPTS+1))
-        MANIFEST_TAG=$(ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* | grep -F "${VERSION_NUM}" | tail -n ${ATTEMPTS} | head -n 1 | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}.*")
-        SNAPSHOT_TAG=$(echo ${MANIFEST_TAG} | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}")
-        VERSION_NUM=$(echo ${MANIFEST_TAG} | grep -o "\([[:digit:]]\+\.\)\{2\}[[:digit:]]\+")
+        MANIFEST_TAG=$(ls "${RHACM_PIPELINE_PATH}"/snapshots/manifest-* | grep -F "${VERSION_NUM}" | tail -n ${ATTEMPTS} | head -n 1 | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}.*")
+        SNAPSHOT_TAG=$(echo "${MANIFEST_TAG}" | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}")
+        VERSION_NUM=$(echo "${MANIFEST_TAG}" | grep -o "\([[:digit:]]\+\.\)\{2\}[[:digit:]]\+")
         if [[ -n "${RHACM_VERSION}" && "${RHACM_VERSION}" != "${VERSION_NUM}" ]]; then
           printlog error "There's an unexpected mismatch between the version provided, ${RHACM_VERSION}, and the version found, ${VERSION_NUM}. Please double check the Pipeline repo before continuing."
           exit 1
@@ -439,37 +439,37 @@ else
 
   # Deploy RHACM using retrieved snapshot
   printlog title "Deploying Red Hat Advanced Cluster Management"
-  cd ${RHACM_DEPLOY_PATH}
+  cd "${RHACM_DEPLOY_PATH}"
   printlog info "Updating repo and switching to the master branch (if this exits, check the state of the local Deploy repo)"
   git checkout master &>/dev/null
   git pull &>/dev/null
-  echo "${RHACM_SNAPSHOT}" > ${RHACM_DEPLOY_PATH}/snapshot.ver
-  if (! ls ${RHACM_DEPLOY_PATH}/prereqs/pull-secret.yaml &>/dev/null) && [[ -z "${QUAY_TOKEN}" ]]; then
+  echo "${RHACM_SNAPSHOT}" > "${RHACM_DEPLOY_PATH}"/snapshot.ver
+  if (! ls "${RHACM_DEPLOY_PATH}"/prereqs/pull-secret.yaml &>/dev/null) && [[ -z "${QUAY_TOKEN}" ]]; then
     printlog error "Error finding pull secret in deploy repo. Please consult https://github.com/stolostron/deploy on how to set it up."
     exit 1
   fi
   # Deploy necessary downstream resources if required
   if [[ "${DOWNSTREAM}" == "true" ]] || [[ "${INSTALL_ICSP}" == "true" ]]; then
     if [[ -z "${QUAY_TOKEN}" ]]; then
-      DOWNSTREAM_QUAY_TOKEN=$(cat ${RHACM_DEPLOY_PATH}/prereqs/pull-secret.yaml | grep "\.dockerconfigjson" | sed 's/.*\.dockerconfigjson: //')
+      DOWNSTREAM_QUAY_TOKEN=$(cat "${RHACM_DEPLOY_PATH}"/prereqs/pull-secret.yaml | grep "\.dockerconfigjson" | sed 's/.*\.dockerconfigjson: //')
     else
       DOWNSTREAM_QUAY_TOKEN=${QUAY_TOKEN}
     fi
-    DOWNSTREAM_QUAY_TOKEN=$(echo ${DOWNSTREAM_QUAY_TOKEN} | base64 --decode | sed "s/quay\.io/quay\.io:443/g")
+    DOWNSTREAM_QUAY_TOKEN=$(echo "${DOWNSTREAM_QUAY_TOKEN}" | base64 --decode | sed "s/quay\.io/quay\.io:443/g")
     OPENSHIFT_PULL_SECRET=$(oc get -n openshift-config secret pull-secret -o jsonpath='{.data.\.dockerconfigjson}' | base64 --decode)
     FULL_TOKEN="${DOWNSTREAM_QUAY_TOKEN}${OPENSHIFT_PULL_SECRET}"
     if [[ "${DOWNSTREAM}" == "true" ]]; then
       printlog info "Setting up for downstream deployment"
       export COMPOSITE_BUNDLE=true
       export CUSTOM_REGISTRY_REPO="quay.io:443/acm-d"
-      export QUAY_TOKEN=$(echo ${DOWNSTREAM_QUAY_TOKEN} | ${BASE64})
+      export QUAY_TOKEN=$(echo "${DOWNSTREAM_QUAY_TOKEN}" | ${BASE64})
     else
       printlog info "Installing ICSP"
     fi
     printlog info "Updating Openshift pull-secret in namespace openshift-config with a token for quay.io:433"
-    oc set data secret/pull-secret -n openshift-config --from-literal=.dockerconfigjson="$(jq -s '.[0] * .[1]' <<<${FULL_TOKEN})"
+    oc set data secret/pull-secret -n openshift-config --from-literal=.dockerconfigjson="$(jq -s '.[0] * .[1]' <<<"${FULL_TOKEN}")"
     printlog info "Applying downstream resources (including ImageContentSourcePolicy to point to downstream repo)"
-    oc apply -k ${RHACM_DEPLOY_PATH}/addons/downstream
+    oc apply -k "${RHACM_DEPLOY_PATH}"/addons/downstream
     # Wait for cluster node to update with ICSP--if not all the nodes are up after this, we'll continue anyway
     printlog info "Waiting up to 10 minutes for cluster nodes to update with ImageContentSourcePolicy change"
     READY="false"
@@ -507,15 +507,15 @@ fi
 
 # Set CLI to point to RHACM namespace
 printlog title "Setting oc CLI context to ${TARGET_NAMESPACE} namespace"
-oc config set-context --current --namespace=${TARGET_NAMESPACE}
+oc config set-context --current --namespace="${TARGET_NAMESPACE}"
 
 printlog title "Information for claimed RHACM cluster (Note: RHACM may be completing final installation steps):"
-printlog info "Set KUBECONFIG:\n  export KUBECONFIG=$(echo ${KUBECONFIG})"
-printlog info "Lifeguard ClusterClaim directory (containing cluster details and more):\n  cd $(echo ${KUBECONFIG} | sed 's/kubeconfig//')"
+printlog info "Set KUBECONFIG:\n  export KUBECONFIG=${KUBECONFIG}"
+printlog info "Lifeguard ClusterClaim directory (containing cluster details and more):\n  cd $(echo "${KUBECONFIG}" | sed 's/kubeconfig//')"
 
 # Set ClusterPool to target size post-deployment
 if [[ -n "${CLUSTERPOOL_POST_DEPLOY_SIZE}" ]]; then
   printlog info "Scaling ClusterPool ${CLUSTERPOOL_NAME} to ${CLUSTERPOOL_POST_DEPLOY_SIZE}"
   export KUBECONFIG=${PREVIOUS_KUBECONFIG}
-  oc scale clusterpool.hive ${CLUSTERPOOL_NAME} -n ${CLUSTERPOOL_TARGET_NAMESPACE} --replicas=${CLUSTERPOOL_POST_DEPLOY_SIZE}
+  oc scale clusterpool.hive "${CLUSTERPOOL_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" --replicas="${CLUSTERPOOL_POST_DEPLOY_SIZE}"
 fi
