@@ -81,7 +81,7 @@ function queryquay() {
     if [[ -n "${USER_SNAPSHOT}" ]]; then
       RHACM_SNAPSHOT=$(echo "${SNAPSHOT_TAGS}" | head -n 1)
     else
-      RHACM_SNAPSHOT=$(echo "${SNAPSHOT_TAGS}" | grep -v "^v\|nonesuch\|-$" | sort -r --version-sort | grep -F "${RHACM_VERSION}" | grep -F "${BRANCH}."| head -n 1)
+      RHACM_SNAPSHOT=$(echo "${SNAPSHOT_TAGS}" | grep -v "^v\|nonesuch\|-$" | sort -r --version-sort | grep -F "${RHACM_VERSION}" | grep -F "${RHACM_BRANCH}."| head -n 1)
     fi
   done
   
@@ -203,11 +203,11 @@ else
     printlog info "Getting upstream snapshot"
     cd ${RHACM_PIPELINE_PATH}
     git pull &>/dev/null
-    BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
+    RHACM_BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
     VERSION_NUM=${RHACM_VERSION:=""}
     PIPELINE_PHASE=${PIPELINE_PHASE:-"dev"}
     # Handle older pipeline phases
-    if [[ "${BRANCH}" == "2."[0-4] ]]; then
+    if [[ "${RHACM_BRANCH}" == "2."[0-4] ]]; then
       case "${PIPELINE_PHASE}" in
         dev|nightly)
           PIPELINE_PHASE="edge"
@@ -217,15 +217,15 @@ else
           ;;
       esac
     fi
-    printlog info "Updating repo and switching to the ${BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
-    git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
+    printlog info "Updating repo and switching to the ${RHACM_BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
+    git checkout ${RHACM_BRANCH}-${PIPELINE_PHASE} &>/dev/null
     git pull &>/dev/null
     if (! ls ${RHACM_PIPELINE_PATH}/snapshots/manifest-* &>/dev/null); then
-      printlog error "The branch, ${BRANCH}-${PIPELINE_PHASE}, doesn't appear to have any snapshots/manifest-* files to parse a snapshot from."
+      printlog error "The branch, ${RHACM_BRANCH}-${PIPELINE_PHASE}, doesn't appear to have any snapshots/manifest-* files to parse a snapshot from."
       if [[ -z "${RHACM_BRANCH}" ]]; then
-        BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -2 | head -1 | grep -o "[0-9]\+\.[0-9]\+")}
-        printlog info "RHACM_BRANCH was not set. Using an older branch: ${BRANCH}-${PIPELINE_PHASE}"
-        git checkout ${BRANCH}-${PIPELINE_PHASE} &>/dev/null
+        RHACM_BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -2 | head -1 | grep -o "[0-9]\+\.[0-9]\+")}
+        printlog info "RHACM_BRANCH was not set. Using an older branch: ${RHACM_BRANCH}-${PIPELINE_PHASE}"
+        git checkout ${RHACM_BRANCH}-${PIPELINE_PHASE} &>/dev/null
         git pull &>/dev/null
       else
         printlog error "Please double check the Pipeline repo and set RHACM_BRANCH as needed."
