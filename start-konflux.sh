@@ -72,15 +72,21 @@ spec:
   imageDigestMirrors:
     - mirrors:
         - quay.io:443/acm-d
+        - registry.stage.redhat.io/rhacm2
         - brew.registry.redhat.io/rh-osbs/rhacm2
       source: registry.redhat.io/rhacm2
     - mirrors:
         - quay.io:443/acm-d
+        - registry.stage.redhat.io/multicluster-engine
         - brew.registry.redhat.io/rh-osbs/multicluster-engine
       source: registry.redhat.io/multicluster-engine
     - mirrors:
         - quay.io:443/acm-d
+        - registry.stage.redhat.io/openshift4
       source: registry.redhat.io/openshift4
+    - mirrors:
+        - registry.stage.redhat.io/gatekeeper
+      source: registry.redhat.io/gatekeeper
 EOF
 
 printlog info "Creating CatalogSources using ACM_CATALOG_TAG=${ACM_CATALOG_TAG} and MCE_CATALOG_TAG=${MCE_CATALOG_TAG}"

@@ -201,6 +201,32 @@ if [[ "${DOWNSTREAM}" == "true" ]] || [[ "${INSTALL_ICSP}" == "true" ]]; then
   oc set data secret/pull-secret -n openshift-config --from-literal=.dockerconfigjson="$(jq -s '.[0] * .[1]' <<<"${FULL_TOKEN}")"
   printlog info "Applying downstream resources (including ImageContentSourcePolicy to point to downstream repo)"
   oc apply -k "${RHACM_DEPLOY_PATH}"/addons/downstream
+  printlog info "Applying ImageDigestMirrorSet"
+  oc apply -f - <<EOF
+apiVersion: config.openshift.io/v1
+kind: ImageDigestMirrorSet
+metadata:
+  name: image-mirror-custom
+spec:
+  imageDigestMirrors:
+    - mirrors:
+        - quay.io:443/acm-d
+        - registry.stage.redhat.io/rhacm2
+        - brew.registry.redhat.io/rh-osbs/rhacm2
+      source: registry.redhat.io/rhacm2
+    - mirrors:
+        - quay.io:443/acm-d
+        - registry.stage.redhat.io/multicluster-engine
+        - brew.registry.redhat.io/rh-osbs/multicluster-engine
+      source: registry.redhat.io/multicluster-engine
+    - mirrors:
+        - quay.io:443/acm-d
+        - registry.stage.redhat.io/openshift4
+      source: registry.redhat.io/openshift4
+    - mirrors:
+        - registry.stage.redhat.io/gatekeeper
+      source: registry.redhat.io/gatekeeper
+EOF
   # Wait for cluster node to update with ICSP--if not all the nodes are up after this, we'll continue anyway
   printlog info "Waiting up to 10 minutes for cluster nodes to update with ImageContentSourcePolicy change"
   READY="false"
