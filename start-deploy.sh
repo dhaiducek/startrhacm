@@ -11,17 +11,21 @@ fi
 # Helper function to format logs
 function printlog() {
   case ${1} in
-    title)  printf "\n##### " 
-            ;;
-    info)   printf "* "
-            ;;
-    error)  printf "^^^^^ "
-            ;;
-    *)      printlog error "Unexpected error in printlog function. Invalid input given: ${1}"
-            exit 1
-            ;;
+  title)
+    printf "\n##### "
+    ;;
+  info)
+    printf "* "
+    ;;
+  error)
+    printf "^^^^^ "
+    ;;
+  *)
+    printlog error "Unexpected error in printlog function. Invalid input given: ${1}"
+    exit 1
+    ;;
   esac
-  printf "${2}\n"
+  printf "%s\n" "${2}"
 }
 
 printlog title "Displaying start-deploy variables"
@@ -46,8 +50,8 @@ if [[ -z "${RHACM_DEPLOY_PATH}" ]]; then
   exit 1
 else
   if (! ls "${RHACM_DEPLOY_PATH}" &>/dev/null); then
-  printlog error "Error getting to Deploy repo. Is RHACM_DEPLOY_PATH set properly? Currently it's set to: ${RHACM_DEPLOY_PATH}"
-  exit 1
+    printlog error "Error getting to Deploy repo. Is RHACM_DEPLOY_PATH set properly? Currently it's set to: ${RHACM_DEPLOY_PATH}"
+    exit 1
   fi
 fi
 
@@ -66,7 +70,7 @@ function queryquay() {
   HAS_ADDITIONAL="true"
   i=0
   while [[ "${HAS_ADDITIONAL}" == "true" ]] && [[ -z "${RHACM_SNAPSHOT}" ]]; do
-    ((i=i+1))
+    ((i = i + 1))
     HAS_ADDITIONAL=$(curl -s "https://quay.io/api/v1/repository/${QUAY_ORGANIZATION}/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}" | jq -r '.has_additional')
     SNAPSHOT_TAGS=$(curl -s "https://quay.io/api/v1/repository/${QUAY_ORGANIZATION}/acm-custom-registry/tag/?onlyActiveTags=true&page=${i}&specificTag=${USER_SNAPSHOT}" | jq -r '.tags[].name')
 
@@ -80,7 +84,7 @@ function queryquay() {
       RHACM_SNAPSHOT=$(echo "${SNAPSHOT_TAGS}" | grep -v "^v\|nonesuch\|-$" | sort -r --version-sort | grep -F "${RHACM_VERSION}" | grep -F "${RHACM_BRANCH}." | head -n 1)
     fi
   done
-  
+
   if [[ -z "${RHACM_SNAPSHOT}" ]]; then
     printlog error "Error querying snapshot list--nothing was returned. Please check https://quay.io/api/v1/repository/${QUAY_ORGANIZATION}/acm-custom-registry/tag/, your network connection, and any conflicts in your exports:"
     printlog error "Query used: RHACM_SNAPSHOT: '${USER_SNAPSHOT}' RHACM_VERSION: '${RHACM_VERSION}' RHACM_BRANCH '${RHACM_BRANCH}'"
@@ -109,12 +113,12 @@ else
     # Handle older pipeline phases
     if [[ "${RHACM_BRANCH}" == "2."[0-4] ]]; then
       case "${PIPELINE_PHASE}" in
-        dev|nightly)
-          PIPELINE_PHASE="edge"
-          ;;
-        preview)
-          PIPELINE_PHASE="stable"
-          ;;
+      dev | nightly)
+        PIPELINE_PHASE="edge"
+        ;;
+      preview)
+        PIPELINE_PHASE="stable"
+        ;;
       esac
     fi
     printlog info "Updating repo and switching to the ${RHACM_BRANCH}-${PIPELINE_PHASE} branch (if this exits, check the state of the local Pipeline repo)"
@@ -136,8 +140,8 @@ else
     ATTEMPTS=0
     MAX_ATTEMPTS=5
     FOUND="false"
-    while [[ "${FOUND}" == "false" ]] && (( ATTEMPTS != MAX_ATTEMPTS )); do
-      ((ATTEMPTS=ATTEMPTS+1))
+    while [[ "${FOUND}" == "false" ]] && ((ATTEMPTS != MAX_ATTEMPTS)); do
+      ((ATTEMPTS = ATTEMPTS + 1))
       MANIFEST_TAG=$(ls "${RHACM_PIPELINE_PATH}"/snapshots/manifest-* | grep -F "${VERSION_NUM}" | tail -n ${ATTEMPTS} | head -n 1 | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}.*")
       SNAPSHOT_TAG=$(echo "${MANIFEST_TAG}" | grep -o "[[:digit:]]\{4\}\(-[[:digit:]]\{2\}\)\{5\}")
       VERSION_NUM=$(echo "${MANIFEST_TAG}" | grep -o "\([[:digit:]]\+\.\)\{2\}[[:digit:]]\+")
@@ -169,7 +173,7 @@ cd "${RHACM_DEPLOY_PATH}"
 printlog info "Updating repo and switching to the master branch (if this exits, check the state of the local Deploy repo)"
 git checkout master &>/dev/null
 git pull &>/dev/null
-echo "${RHACM_SNAPSHOT}" > "${RHACM_DEPLOY_PATH}"/snapshot.ver
+echo "${RHACM_SNAPSHOT}" >"${RHACM_DEPLOY_PATH}"/snapshot.ver
 if (! ls "${RHACM_DEPLOY_PATH}"/prereqs/pull-secret.yaml &>/dev/null) && [[ -z "${QUAY_TOKEN}" ]]; then
   printlog error "Error finding pull secret in deploy repo. Please consult https://github.com/stolostron/deploy on how to set it up."
   exit 1
@@ -177,7 +181,7 @@ fi
 # Deploy necessary downstream resources if required
 if [[ "${DOWNSTREAM}" == "true" ]] || [[ "${INSTALL_ICSP}" == "true" ]]; then
   if [[ -z "${QUAY_TOKEN}" ]]; then
-    DOWNSTREAM_QUAY_TOKEN=$(cat "${RHACM_DEPLOY_PATH}"/prereqs/pull-secret.yaml | grep "\.dockerconfigjson" | sed 's/.*\.dockerconfigjson: //')
+    DOWNSTREAM_QUAY_TOKEN=$(grep "\.dockerconfigjson" "${RHACM_DEPLOY_PATH}/prereqs/pull-secret.yaml" | sed 's/.*\.dockerconfigjson: //')
   else
     DOWNSTREAM_QUAY_TOKEN=${QUAY_TOKEN}
   fi
@@ -186,9 +190,10 @@ if [[ "${DOWNSTREAM}" == "true" ]] || [[ "${INSTALL_ICSP}" == "true" ]]; then
   FULL_TOKEN="${DOWNSTREAM_QUAY_TOKEN}${OPENSHIFT_PULL_SECRET}"
   if [[ "${DOWNSTREAM}" == "true" ]]; then
     printlog info "Setting up for downstream deployment"
-    export COMPOSITE_BUNDLE=true
-    export CUSTOM_REGISTRY_REPO="quay.io:443/acm-d"
-    export QUAY_TOKEN=$(echo "${DOWNSTREAM_QUAY_TOKEN}" | ${BASE64})
+    export COMPOSITE_BUNDLE CUSTOM_REGISTRY_REPO QUAY_TOKEN
+    COMPOSITE_BUNDLE=true
+    CUSTOM_REGISTRY_REPO="quay.io:443/acm-d"
+    QUAY_TOKEN=$(echo "${DOWNSTREAM_QUAY_TOKEN}" | ${BASE64})
   else
     printlog info "Installing ICSP"
   fi
@@ -202,7 +207,7 @@ if [[ "${DOWNSTREAM}" == "true" ]] || [[ "${INSTALL_ICSP}" == "true" ]]; then
   ATTEMPTS=0
   MAX_ATTEMPTS=10
   INTERVAL=60
-  while [[ "${READY}" == "false" ]] && (( ATTEMPTS != MAX_ATTEMPTS )); do
+  while [[ "${READY}" == "false" ]] && ((ATTEMPTS != MAX_ATTEMPTS)); do
     NODES=$(oc get nodes | grep "NotReady\|SchedulingDisabled" || true)
     if [[ -n "${NODES}" ]]; then
       echo "${NODES}"
@@ -219,7 +224,7 @@ MAX_ATTEMPTS=1
 INTERVAL=30
 FAILED="false"
 export TARGET_NAMESPACE=${TARGET_NAMESPACE:-"open-cluster-management"}
-while (! ./start.sh --silent) && FAILED="true" && (( ATTEMPTS != MAX_ATTEMPTS )); do
+while (! ./start.sh --silent) && FAILED="true" && ((ATTEMPTS != MAX_ATTEMPTS)); do
   printlog error "RHACM deployment failed. Trying again in ${INTERVAL}s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
   sleep ${INTERVAL}
   FAILED="false"
@@ -229,4 +234,3 @@ if [[ "${FAILED}" == "true" ]]; then
   printlog error "Otherwise, either manually uninstall RHACM or delete the claim, and then try again."
   exit 1
 fi
-

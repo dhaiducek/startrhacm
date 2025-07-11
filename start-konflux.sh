@@ -5,17 +5,21 @@ set -e
 # Helper function to format logs
 function printlog() {
   case ${1} in
-    title)  printf "\n##### " 
-            ;;
-    info)   printf "* "
-            ;;
-    error)  printf "^^^^^ "
-            ;;
-    *)      printlog error "Unexpected error in printlog function. Invalid input given: ${1}"
-            exit 1
-            ;;
+  title)
+    printf "\n##### "
+    ;;
+  info)
+    printf "* "
+    ;;
+  error)
+    printf "^^^^^ "
+    ;;
+  *)
+    printlog error "Unexpected error in printlog function. Invalid input given: ${1}"
+    exit 1
+    ;;
   esac
-  printf "${2}\n"
+  printf "%s\n" "${2}"
 }
 
 printlog title "Displaying start-konflux variables"

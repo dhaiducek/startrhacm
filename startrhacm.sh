@@ -5,17 +5,21 @@ set -e
 # Helper function to format logs
 function printlog() {
   case ${1} in
-    title)  printf "\n##### " 
-            ;;
-    info)   printf "* "
-            ;;
-    error)  printf "^^^^^ "
-            ;;
-    *)      printlog error "Unexpected error in printlog function. Invalid input given: ${1}"
-            exit 1
-            ;;
+  title)
+    printf "\n##### "
+    ;;
+  info)
+    printf "* "
+    ;;
+  error)
+    printf "^^^^^ "
+    ;;
+  *)
+    printlog error "Unexpected error in printlog function. Invalid input given: ${1}"
+    exit 1
+    ;;
   esac
-  printf "${2}\n"
+  printf "%b\n" "${2}"
 }
 
 printlog title "Displaying startrhacm variables"
@@ -81,10 +85,10 @@ fi
 # Check to see whether the ClusterPool meets the minimum size
 if [[ -n "${CLUSTERPOOL_MIN_SIZE}" ]] && [[ -n "${CLUSTERPOOL_NAME}" ]] && [[ -n "${CLUSTERPOOL_TARGET_NAMESPACE}" ]]; then
   # If a ClusterClaim name was specified and it already exists, we'll continue on without checking pool size since it'll patch it
-  if [[ -z "${CLUSTERCLAIM_NAME}" ]] || ( [[ -n "${CLUSTERCLAIM_NAME}" ]] && (! oc get clusterclaim.hive -n "${CLUSTERPOOL_TARGET_NAMESPACE}" "${CLUSTERCLAIM_NAME}" &>/dev/null) ); then
+  if [[ -z "${CLUSTERCLAIM_NAME}" ]] || ([[ -n "${CLUSTERCLAIM_NAME}" ]] && (! oc get clusterclaim.hive -n "${CLUSTERPOOL_TARGET_NAMESPACE}" "${CLUSTERCLAIM_NAME}" &>/dev/null)); then
     printlog title "Checking for pool size for ClusterPool ${CLUSTERPOOL_NAME}"
-    POOL_SIZE=$(oc get clusterpool.hive -n "${CLUSTERPOOL_TARGET_NAMESPACE}" "${CLUSTERPOOL_NAME}" -o jsonpath={.spec.size})
-    if (( POOL_SIZE < CLUSTERPOOL_MIN_SIZE )); then
+    POOL_SIZE=$(oc get clusterpool.hive -n "${CLUSTERPOOL_TARGET_NAMESPACE}" "${CLUSTERPOOL_NAME}" -o jsonpath='{.spec.size}')
+    if ((POOL_SIZE < CLUSTERPOOL_MIN_SIZE)); then
       printlog info "The ClusterPool size ${POOL_SIZE} does not meet the minimum of ${CLUSTERPOOL_MIN_SIZE}. Patching the ClusterPool to increase the size of the pool."
       oc scale clusterpool.hive "${CLUSTERPOOL_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" --replicas="${CLUSTERPOOL_MIN_SIZE}"
     fi
@@ -101,12 +105,13 @@ git pull &>/dev/null
 # Set lifetime of claim to end of work day
 if [[ -n "${CLUSTERCLAIM_END_TIME}" ]]; then
   printlog info "Setting CLUSTERCLAIM_LIFETIME to end at hour ${CLUSTERCLAIM_END_TIME} of a 24 hour clock"
+  export CLUSTERCLAIM_LIFETIME
   if [[ -n "${CLUSTERCLAIM_NAME}" ]] && (oc get clusterclaim.hive "${CLUSTERCLAIM_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" &>/dev/null); then
     printlog error "Found existing claim with name ${CLUSTERCLAIM_NAME}, so its lifetime (which is based on its creation time) will not be recalculated."
-    export CLUSTERCLAIM_LIFETIME=$(oc get clusterclaim.hive "${CLUSTERCLAIM_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" -o jsonpath='{.spec.lifetime}')
+    CLUSTERCLAIM_LIFETIME=$(oc get clusterclaim.hive "${CLUSTERCLAIM_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" -o jsonpath='{.spec.lifetime}')
     printlog error "Using claim's existing lifetime of ${CLUSTERCLAIM_LIFETIME}. If a different lifetime is desired, please manually edit the claim."
   else
-    export CLUSTERCLAIM_LIFETIME="$((${CLUSTERCLAIM_END_TIME}-$(date "+%-H")-1))h$((60-$(date "+%-M")))m"
+    CLUSTERCLAIM_LIFETIME="$((CLUSTERCLAIM_END_TIME - $(date "+%-H") - 1))h$((60 - $(date "+%-M")))m"
   fi
 fi
 ./apply.sh
@@ -115,10 +120,11 @@ printlog title "Setting KUBECONFIG and checking cluster access"
 # Save the current KUBECONFIG in case we need it
 PREVIOUS_KUBECONFIG=${KUBECONFIG}
 # If we have a ClusterClaim name, use that to get the kubeconfig, otherwise just get the most recently modified (which is most likely the one we need)
+export KUBECONFIG
 if [[ -n "${CLUSTERCLAIM_NAME}" ]]; then
-  export KUBECONFIG=$(ls "${CLAIM_DIR}"/"${CLUSTERCLAIM_NAME}"/kubeconfig)
+  KUBECONFIG=$(ls "${CLAIM_DIR}"/"${CLUSTERCLAIM_NAME}"/kubeconfig)
 else
-  export KUBECONFIG=$(ls -dt1 "${CLAIM_DIR}"/*/kubeconfig | head -n 1)
+  KUBECONFIG=$(ls -dt1 "${CLAIM_DIR}"/*/kubeconfig | head -n 1)
 fi
 # Set namespace context in case it wasn't set or we're inside a pod specifying a different namespace in env
 oc config set-context --current --namespace=default
@@ -127,7 +133,7 @@ ATTEMPTS=0
 MAX_ATTEMPTS=15
 INTERVAL=20
 FAILED="false"
-while (! oc status) && FAILED="true" && (( ATTEMPTS != MAX_ATTEMPTS )); do
+while (! oc status) && FAILED="true" && ((ATTEMPTS != MAX_ATTEMPTS)); do
   printlog error "Error logging in to cluster. Trying again in ${INTERVAL}s (Retry $((++ATTEMPTS))/${MAX_ATTEMPTS})"
   sleep ${INTERVAL}
   FAILED="false"
@@ -140,12 +146,14 @@ fi
 if [[ -n "${ACM_CATALOG_TAG}" ]]; then
   printlog title "Installing Konflux build"
   "${SCRIPT_DIR}"/start-konflux.sh
+  INSTALL_RESULT=$?
 else
   printlog title "Installing using deploy repo"
   "${SCRIPT_DIR}"/start-deploy.sh
+  INSTALL_RESULT=$?
 fi
 
-if (( $? != 0 )); then
+if ((INSTALL_RESULT != 0)); then
   printlog error "An error occurred while installing"
 fi
 
@@ -155,11 +163,11 @@ oc config set-context --current --namespace="${TARGET_NAMESPACE}"
 
 printlog title "Information for claimed RHACM cluster (Note: RHACM may be completing final installation steps):"
 printlog info "Set KUBECONFIG:\n  export KUBECONFIG=${KUBECONFIG}"
-printlog info "Lifeguard ClusterClaim directory (containing cluster details and more):\n  cd $(echo "${KUBECONFIG}" | sed 's/kubeconfig//')"
+printlog info "Lifeguard ClusterClaim directory (containing cluster details and more):\n  cd ${KUBECONFIG//kubeconfig/}"
 
 # Set ClusterPool to target size post-deployment
 if [[ -n "${CLUSTERPOOL_POST_DEPLOY_SIZE}" ]]; then
   printlog info "Scaling ClusterPool ${CLUSTERPOOL_NAME} to ${CLUSTERPOOL_POST_DEPLOY_SIZE}"
-  export KUBECONFIG=${PREVIOUS_KUBECONFIG}
+  KUBECONFIG=${PREVIOUS_KUBECONFIG}
   oc scale clusterpool.hive "${CLUSTERPOOL_NAME}" -n "${CLUSTERPOOL_TARGET_NAMESPACE}" --replicas="${CLUSTERPOOL_POST_DEPLOY_SIZE}"
 fi
