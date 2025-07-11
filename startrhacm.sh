@@ -22,6 +22,22 @@ function printlog() {
   printf "%b\n" "${2}"
 }
 
+# Load configuration
+printlog title "Loading configuration from utils/config.sh"
+SCRIPT_FULLPATH=$(realpath "${BASH_SOURCE[0]}")
+SCRIPT_DIR=$(dirname "${SCRIPT_FULLPATH}")
+if ls "${SCRIPT_DIR}"/utils/config.sh &>/dev/null; then
+  if (! "${SCRIPT_DIR}"/utils/config.sh); then
+    printlog error "Error running configuration script. Is the script executable? If not, run: chmod +x ${SCRIPT_DIR}/utils/config.sh"
+    exit 1
+  else
+    source "${SCRIPT_DIR}"/utils/config.sh
+  fi
+else
+  printlog info "config.sh script not found"
+  printlog info "(Location checked for script: ${SCRIPT_DIR}/utils/config.sh)"
+fi
+
 printlog title "Displaying startrhacm variables"
 printlog info "LIFEGUARD_PATH=${LIFEGUARD_PATH}"
 printlog info "DISABLE_CLUSTER_CHECK=${DISABLE_CLUSTER_CHECK}"
@@ -43,22 +59,6 @@ else
     printlog error "Error getting to Lifeguard repo. Is LIFEGUARD_PATH set properly? Currently it's set to: ${LIFEGUARD_PATH}"
     exit 1
   fi
-fi
-
-# Load configuration
-printlog title "Loading configuration from utils/config.sh"
-SCRIPT_FULLPATH=$(realpath "${BASH_SOURCE[0]}")
-SCRIPT_DIR=$(dirname "${SCRIPT_FULLPATH}")
-if ls "${SCRIPT_DIR}"/utils/config.sh &>/dev/null; then
-  if (! "${SCRIPT_DIR}"/utils/config.sh); then
-    printlog error "Error running configuration script. Is the script executable? If not, run: chmod +x ${SCRIPT_DIR}/utils/config.sh"
-    exit 1
-  else
-    source "${SCRIPT_DIR}"/utils/config.sh
-  fi
-else
-  printlog info "config.sh script not found"
-  printlog info "(Location checked for script: ${SCRIPT_DIR}/utils/config.sh)"
 fi
 
 # Verify we're pointed to the collective cluster
