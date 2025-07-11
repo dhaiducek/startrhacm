@@ -106,8 +106,9 @@ else
   if [[ -z "${RHACM_SNAPSHOT}" ]]; then
     printlog info "Getting upstream snapshot"
     cd "${RHACM_PIPELINE_PATH}"
-    git pull &>/dev/null
-    RHACM_BRANCH=${RHACM_BRANCH:-$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
+    stolostron_remote=$(git remote -v | awk '/stolostron/ {print $1}' | head -n 1)
+    git fetch "${stolostron_remote}" &>/dev/null
+    RHACM_BRANCH=${RHACM_BRANCH:-$(git remote show "${stolostron_remote}" | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -1 | grep -o "[0-9]\+\.[0-9]\+")}
     VERSION_NUM=${RHACM_VERSION:=""}
     PIPELINE_PHASE=${PIPELINE_PHASE:-"dev"}
     # Handle older pipeline phases
@@ -127,7 +128,7 @@ else
     if (! ls "${RHACM_PIPELINE_PATH}"/snapshots/manifest-* &>/dev/null); then
       printlog error "The branch, ${RHACM_BRANCH}-${PIPELINE_PHASE}, doesn't appear to have any snapshots/manifest-* files to parse a snapshot from."
       if [[ -z "${RHACM_BRANCH}" ]]; then
-        RHACM_BRANCH=$(git remote show origin | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -2 | head -1 | grep -o "[0-9]\+\.[0-9]\+")
+        RHACM_BRANCH=$(git remote show "${stolostron_remote}" | grep -o " [0-8]\+\.[0-9]\+-" | sort -uV | tail -2 | head -1 | grep -o "[0-9]\+\.[0-9]\+")
         printlog info "RHACM_BRANCH was not set. Using an older branch: ${RHACM_BRANCH}-${PIPELINE_PHASE}"
         git checkout "${RHACM_BRANCH}-${PIPELINE_PHASE}" &>/dev/null
         git pull &>/dev/null
