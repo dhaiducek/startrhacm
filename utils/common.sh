@@ -82,6 +82,10 @@ spec:
         - registry.stage.redhat.io/openshift4
       source: registry.redhat.io/openshift4
     - mirrors:
+        - 'quay.io:443/acm-d'
+        - registry.stage.redhat.io/openshift5
+      source: registry.redhat.io/openshift5
+    - mirrors:
         - registry.stage.redhat.io/gatekeeper
       source: registry.redhat.io/gatekeeper
 EOF
