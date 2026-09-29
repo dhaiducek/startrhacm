@@ -132,14 +132,14 @@ if [[ -n "${ACM_CATALOG_TAG}" ]]; then
     "${SCRIPT_DIR}/start-acm.sh"
     INSTALL_RESULT=$?
   elif [[ "${ACM_CATALOG_TAG}" =~ ^latest-[0-9]+\.[0-9]+(\.[0-9]+-[0-9]+)?$ ]] ||
-  [[ "${ACM_CATALOG_TAG}" =~ ^[0-9]+(\.[0-9]+){2}-DOWNSTREAM(-[0-9]+){6}$ ]]; then
+    [[ "${ACM_CATALOG_TAG}" =~ ^[0-9]+(\.[0-9]+){2}-DOWNSTREAM(-[0-9]+){6}$ ]]; then
     printlog title "Installing Konflux build"
-    "${SCRIPT_DIR}/start-konflux.sh" 
+    "${SCRIPT_DIR}/start-konflux.sh"
     INSTALL_RESULT=$?
   else
     printlog title "Installing ART build"
-    printlog error "<ART INSTALL PLACEHOLDER>"
-    exit 1
+    "${SCRIPT_DIR}/start-art.sh"
+    INSTALL_RESULT=$?
   fi
 else
   printlog title "Installing using deploy repo"
