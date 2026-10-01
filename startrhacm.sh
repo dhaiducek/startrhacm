@@ -123,7 +123,11 @@ if [[ "${FAILED}" == "true" ]]; then
   exit 1
 fi
 
-if [[ -n "${ACM_CATALOG_TAG}" ]]; then
+if [[ -n "${ART_ACM_CATALOG_IMAGE}" ]]; then
+  printlog title "Installing ART build"
+  "${SCRIPT_DIR}"/start-art.sh
+  INSTALL_RESULT=$?
+elif [[ -n "${ACM_CATALOG_TAG}" ]]; then
   printlog title "Installing Konflux build"
   "${SCRIPT_DIR}"/start-konflux.sh
   INSTALL_RESULT=$?
