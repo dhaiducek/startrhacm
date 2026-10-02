@@ -2,36 +2,15 @@
 
 set -e
 
-source "$(dirname "${BASH_SOURCE[0]}")/utils/common.sh"
+script_dir="$(dirname "${BASH_SOURCE[0]}")"
 
-QUAY_TOKEN=${QUAY_TOKEN:-$(get_quay_token_from_file)}
+source "${script_dir}/utils/common.sh"
 
-printlog title "Displaying start-konflux variables"
-printlog info "ACM_CATALOG_TAG=${ACM_CATALOG_TAG}"
-printlog info "MCE_CATALOG_TAG=${MCE_CATALOG_TAG}"
-printlog info "QUAY_TOKEN= (hidden ${#QUAY_TOKEN} characters)"
-printlog info "ACM_CHANNEL=${ACM_CHANNEL}"
-printlog info "TARGET_NAMESPACE=${TARGET_NAMESPACE}"
-printlog info "LOCAL_CLUSTER_NAME=${LOCAL_CLUSTER_NAME}"
-
-if [[ -z "${ACM_CATALOG_TAG}" ]]; then
-  printlog error "ACM_CATALOG_TAG not defined. Please set ACM_CATALOG_TAG to the desired ACM version."
-  exit 1
-fi
-
-if [[ -z "${MCE_CATALOG_TAG}" ]]; then
-  printlog error "MCE_CATALOG_TAG not defined. Please set MCE_CATALOG_TAG to correspond to your ACM_CATALOG_TAG."
-  exit 1
-fi
-
-if [[ -z "${QUAY_TOKEN}" ]]; then
-  printlog error "QUAY_TOKEN must be set, or a quay.io token provided in a docker config file at utils/.docker/config.json"
-  exit 1
-fi
+export ACM_CHANNEL
 
 if [[ -z "${ACM_CHANNEL}" ]]; then
-  if [[ "${ACM_CATALOG_TAG:0:7}" == "latest-" ]]; then
-    ACM_CHANNEL=${ACM_CHANNEL:-"release-${ACM_CATALOG_TAG:7:4}"}
+  if [[ "${ACM_CATALOG_TAG}" =~ ^latest-([0-9]+\.[0-9]+) ]]; then
+    ACM_CHANNEL=${ACM_CHANNEL:-"release-${BASH_REMATCH[1]}"}
     # For example: ACM_CATALOG_TAG=latest-2.15 gives ACM_CHANNEL=release-2.15
     printlog info "using ACM_CHANNEL=${ACM_CHANNEL}"
   else
@@ -40,94 +19,8 @@ if [[ -z "${ACM_CHANNEL}" ]]; then
   fi
 fi
 
-setup_pull_secret "${QUAY_TOKEN}"
-setup_image_mirrors
+export ACM_CATALOG_IMAGE="quay.io:443/acm-d/acm-dev-catalog"
+export MCE_CATALOG_IMAGE="quay.io:443/acm-d/mce-dev-catalog"
+export INCLUDE_ACMD=true
 
-printlog info "Creating CatalogSources using ACM_CATALOG_TAG=${ACM_CATALOG_TAG} and MCE_CATALOG_TAG=${MCE_CATALOG_TAG}"
-oc apply -f - <<EOF
-apiVersion: operators.coreos.com/v1alpha1
-kind: CatalogSource
-metadata:
-  name: acm-dev-catalog
-  namespace: openshift-marketplace
-  labels:
-    startrhacm: "true"
-spec:
-  displayName: acm-dev-catalog:${ACM_CATALOG_TAG}
-  image: quay.io:443/acm-d/acm-dev-catalog:${ACM_CATALOG_TAG}
-  publisher: grpc
-  sourceType: grpc
-  updateStrategy:
-    registryPoll:
-      interval: 10m
----
-apiVersion: operators.coreos.com/v1alpha1
-kind: CatalogSource
-metadata:
-  name: mce-dev-catalog
-  namespace: openshift-marketplace
-spec:
-  displayName: mce-dev-catalog:${MCE_CATALOG_TAG}
-  image: quay.io:443/acm-d/mce-dev-catalog:${MCE_CATALOG_TAG}
-  publisher: grpc
-  sourceType: grpc
-  updateStrategy:
-    registryPoll:
-      interval: 10m
-EOF
-
-printlog info "Waiting up to 10 minutes each for the CatalogSources to become available"
-oc wait --for=jsonpath='.status.connectionState.lastObservedState'=READY catalogsource.operators acm-dev-catalog -n openshift-marketplace --timeout=600s
-oc wait --for=jsonpath='.status.connectionState.lastObservedState'=READY catalogsource.operators mce-dev-catalog -n openshift-marketplace --timeout=600s
-
-TARGET_NAMESPACE=${TARGET_NAMESPACE:-"open-cluster-management"}
-printlog info "Installing the ACM Operator with TARGET_NAMESPACE=${TARGET_NAMESPACE} and ACM_CHANNEL=${ACM_CHANNEL}"
-oc apply -f - <<EOF
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: "${TARGET_NAMESPACE}"
-EOF
-
-sleep 5
-oc apply -f - <<EOF
-apiVersion: operators.coreos.com/v1
-kind: OperatorGroup
-metadata:
-  name: default
-  namespace: "${TARGET_NAMESPACE}"
-spec:
-  targetNamespaces:
-  - "${TARGET_NAMESPACE}"
----
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: acm-operator-subscription
-  namespace: "${TARGET_NAMESPACE}"
-spec:
-  channel: "${ACM_CHANNEL}"
-  installPlanApproval: Automatic
-  name: advanced-cluster-management
-  source: acm-dev-catalog
-  sourceNamespace: openshift-marketplace
-EOF
-
-printlog info "Waiting up to 10 minutes for the Subscription to succeed"
-oc wait --for=jsonpath='.status.state'=AtLatestKnown subscription.operators acm-operator-subscription -n "${TARGET_NAMESPACE}" --timeout=600s
-
-LOCAL_CLUSTER_NAME=${LOCAL_CLUSTER_NAME:-"local-cluster"}
-sleep 30
-printlog info "Creating the MultiClusterHub with LOCAL_CLUSTER_NAME=${LOCAL_CLUSTER_NAME}"
-oc apply -f - <<EOF
-apiVersion: operator.open-cluster-management.io/v1
-kind: MultiClusterHub
-metadata:
-  name: multiclusterhub
-  namespace: "${TARGET_NAMESPACE}"
-spec:
-  localClusterName: "${LOCAL_CLUSTER_NAME}"
-EOF
-
-printlog info "Waiting up to 15 minutes for the MultiClusterHub to become Running"
-oc wait --for=jsonpath='.status.phase'=Running multiclusterhub multiclusterhub -n "${TARGET_NAMESPACE}" --timeout=900s
+"${script_dir}/start-acm.sh"
