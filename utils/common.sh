@@ -11,22 +11,24 @@ fi
 
 # Formats and outputs logs
 function printlog() {
+  local prefix fd=1
   case ${1} in
   title)
-    printf "\n##### "
+    prefix="\n##### "
     ;;
   info)
-    printf "* "
+    prefix="* "
     ;;
   error)
-    printf "^^^^^ "
+    prefix="^^^^^ "
+    fd=2
     ;;
   *)
     printlog error "Unexpected error in printlog function. Invalid input given: ${1}"
     exit 1
     ;;
   esac
-  printf "%b\n" "${2}"
+  printf "%b%b\n" "${prefix}" "${2}" >&"${fd}"
 }
 
 # Gets QUAY_TOKEN from utils/.docker/config.json
