@@ -18,6 +18,9 @@ else
   printlog info "(Location checked for script: ${SCRIPT_DIR}/utils/config.sh)"
 fi
 
+export TARGET_NAMESPACE=${TARGET_NAMESPACE:-"open-cluster-management"}
+export LOCAL_CLUSTER_NAME=${LOCAL_CLUSTER_NAME:-"local-cluster"}
+
 printlog title "Displaying startrhacm variables"
 printlog info "LIFEGUARD_PATH=${LIFEGUARD_PATH}"
 printlog info "DISABLE_CLUSTER_CHECK=${DISABLE_CLUSTER_CHECK}"
@@ -124,12 +127,23 @@ if [[ "${FAILED}" == "true" ]]; then
 fi
 
 if [[ -n "${ACM_CATALOG_TAG}" ]]; then
-  printlog title "Installing Konflux build"
-  "${SCRIPT_DIR}"/start-konflux.sh
-  INSTALL_RESULT=$?
+  if [[ -n "${ACM_CATALOG_IMAGE}" ]] && [[ -n "${MCE_CATALOG_IMAGE}" ]]; then
+    printlog title "Installing using custom catalog images"
+    "${SCRIPT_DIR}/start-acm.sh"
+    INSTALL_RESULT=$?
+  elif [[ "${ACM_CATALOG_TAG}" =~ ^latest-[0-9]+\.[0-9]+(\.[0-9]+-[0-9]+)?$ ]] ||
+  [[ "${ACM_CATALOG_TAG}" =~ ^[0-9]+(\.[0-9]+){2}-DOWNSTREAM(-[0-9]+){6}$ ]]; then
+    printlog title "Installing Konflux build"
+    "${SCRIPT_DIR}/start-konflux.sh" 
+    INSTALL_RESULT=$?
+  else
+    printlog title "Installing ART build"
+    printlog error "<ART INSTALL PLACEHOLDER>"
+    exit 1
+  fi
 else
   printlog title "Installing using deploy repo"
-  "${SCRIPT_DIR}"/start-deploy.sh
+  "${SCRIPT_DIR}/start-deploy.sh"
   INSTALL_RESULT=$?
 fi
 
