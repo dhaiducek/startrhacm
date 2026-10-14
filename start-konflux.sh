@@ -8,6 +8,11 @@ source "${script_dir}/utils/common.sh"
 
 export ACM_CHANNEL
 
+if [[ -z "${MCE_CATALOG_TAG}" ]]; then
+  printlog info "Found empty MCE_CATALOG_TAG. Setting to value from ACM_CATALOG_TAG: ${ACM_CATALOG_TAG:-<empty>}"
+  MCE_CATALOG_TAG="${ACM_CATALOG_TAG}"
+fi
+
 if [[ -z "${ACM_CHANNEL}" ]]; then
   if [[ "${ACM_CATALOG_TAG}" =~ ^latest-([0-9]+\.[0-9]+) ]]; then
     version="${BASH_REMATCH[1]}"
