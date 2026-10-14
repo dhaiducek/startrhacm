@@ -2,6 +2,7 @@
 
 set -e
 
+# shellcheck source=./utils/common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 printlog title "Setting up pull secret and ImageDigestMirrorSet for spoke cluster"
