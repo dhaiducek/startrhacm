@@ -8,59 +8,82 @@ Deploy Red Hat Advanced Cluster Management (RHACM) via ClusterPool
 
 ## Features
 
-- Claims an OpenShift cluster from a ClusterPool and deploys Upstream or Downstream RHACM of any available branch (x.x), version (x.x.x), "traditional" snapshot, or "Konflux build"
+- Claims an OpenShift cluster from a ClusterPool and deploys Upstream or Downstream RHACM of any
+  available branch (x.x), version (x.x.x), "legacy" snapshot, or "Konflux build"
 - (optional) Automatically resizes a specified pool if the pool isn't large enough
 - (optional) Patch the cluster to accept connections from localhost paths for development
 - `startrhacm.sh` can be aliased and run from anywhere on your computer:
+
   ```bash
   alias startrhacm="${PATH_TO_STARTRHACM}/startrhacm.sh"
   ```
 
 ## Prerequisites
 
-### Clone the following repo:
+### Clone the Lifeguard repo
 
-- [Lifeguard](https://github.com/stolostron/lifeguard) - Collection of scripts to claim from ClusterPools
+- [Lifeguard](https://github.com/stolostron/lifeguard) - Collection of scripts to claim from
+  ClusterPools
 
-#### These repos are required if deploying a "traditional" version:
+#### These repos are required if deploying a "legacy" version
 
 - [Deploy](https://github.com/stolostron/deploy) - Installation scripts for RHACM
-  - _Be sure to set up your pull secret for Deploy ([see Deploy documentation](https://github.com/stolostron/deploy#prepare-to-deploy-open-cluster-management-instance-only-do-once))_
-- [Pipeline](https://github.com/stolostron/pipeline/) - Collection of available RHACM snapshots (private repo)
+  - _Be sure to set up your pull secret for Deploy
+    ([see Deploy documentation](https://github.com/stolostron/deploy#prepare-to-deploy-open-cluster-management-instance-only-do-once))_
+- [Pipeline](https://github.com/stolostron/pipeline/) - Collection of available RHACM snapshots
+  (private repo)
   - _Exception: Pipeline is not necessary if the full snapshot is provided via RHACM_SNAPSHOT_
 
 ### Setup config scripts
 
-Exports are contained in a `config.sh` script (but they can also be exported outside of the script if desired). To set up `config.sh` for your own use, customize [`utils/config.sh.template`](./utils/config.sh.template) or your squad-specific template below as desired and rename it to `utils/config.sh`.
+Exports are contained in a `config.sh` script (but they can also be exported outside of the script
+if desired). To set up `config.sh` for your own use, customize
+[`utils/config.sh.template`](./utils/config.sh.template) or your squad-specific template below as
+desired and rename it to `utils/config.sh`.
 
 - **Required**: Set paths to cloned repos
+
   ```bash
   export LIFEGUARD_PATH= # Path to local Lifeguard repo
   export RHACM_DEPLOY_PATH= # Path to local Deploy repo
   export RHACM_PIPELINE_PATH= # Path to local Pipeline repo (optional only if deploying downstream or RHACM_SNAPSHOT is specified directly)
   ```
-- Optionally configure other variables as indicated in the comments in [`utils/config.sh.template`](./utils/config.sh.template) (if optional variables are not provided, the `startrhacm.sh` script will prompt you for ClusterClaim options and will deploy the latest "traditional" upstream RHACM snapshot)
+
+- Optionally configure other variables as indicated in the comments in
+  [`utils/config.sh.template`](./utils/config.sh.template) (if optional variables are not provided,
+  the `startrhacm.sh` script will prompt you for ClusterClaim options and will deploy the latest
+  "legacy" upstream RHACM snapshot)
 - Set up file permissions for the config script to be executable
+
   ```bash
   chmod +x ./utils/config.sh
   ```
 
 ### Configure `oc` CLI to point to the Collective cluster
 
-You'll need to be logged in to the Collective cluster that hosts ClusterPools. If you're not, `startrhacm.sh` will detect this and provide you with the [link to the login command](https://oauth-openshift.apps.collective.aws.red-chesterfield.com/oauth/token/request). (If you're using a different ClusterPool cluster, you can disable this check by setting `export DISABLE_CLUSTER_CHECK="true"`)
+You'll need to be logged in to the Collective cluster that hosts ClusterPools. If you're not,
+`startrhacm.sh` will detect this and provide you with the
+[link to the login command](https://oauth-openshift.apps.collective.aws.red-chesterfield.com/oauth/token/request).
+(If you're using a different ClusterPool cluster, you can disable this check by setting
+`export DISABLE_CLUSTER_CHECK="true"`)
 
 ### Supply a Quay token
 
-If you are deploying a "Konflux" build, you must export `QUAY_TOKEN` with a base64-encoded dockerconfig with access to `quay.io/acm-d`. Alternatively, place your dockerconfig at `utils/.docker/config.json` and it will be automatically loaded. For both options, make sure that the dockerconfig only contains the quay.io registry because everything gets copied to the OCP pull secret!
+If you are deploying a "Konflux" build, you must export `QUAY_TOKEN` with a base64-encoded
+dockerconfig with access to `quay.io/acm-d`. Alternatively, place your dockerconfig at
+`utils/.docker/config.json` and it will be automatically loaded. For both options, make sure that
+the dockerconfig only contains the quay.io registry because everything gets copied to the OCP pull
+secret!
 
 Example `utils/.docker/config.json` format:
+
 ```json
 {
-    "auths": {
-        "quay.io": {
-            "auth": "..."
-        }
+  "auths": {
+    "quay.io": {
+      "auth": "..."
     }
+  }
 }
 ```
 
@@ -70,11 +93,17 @@ Example `utils/.docker/config.json` format:
 
 ## Extras
 
-- Setup pull secret and image mirrors on a spoke cluster for Konflux builds (requires `QUAY_TOKEN` or `utils/.docker/config.json`)
+- Setup pull secret and image mirrors on a spoke cluster for Konflux builds (requires `QUAY_TOKEN`
+  or `utils/.docker/config.json`)
+
   ```bash
   ./utils/configure-spoke-cluster.sh
   ```
-- Shrink and/or expand ALL ClusterPool sizes on a schedule using a CronJob. By default, schedules are set to shrink to 1 at 8 PM EST (1 AM UTC) every day and expand to 2 at 6 AM EST (11 AM UTC) Monday - Friday
+
+- Shrink and/or expand ALL ClusterPool sizes on a schedule using a CronJob. By default, schedules
+  are set to shrink to 1 at 8 PM EST (1 AM UTC) every day and expand to 2 at 6 AM EST (11 AM UTC)
+  Monday - Friday
+
   ```bash
   cd extras
   export CLUSTERPOOL_TARGET_NAMESPACE=<namespace>
