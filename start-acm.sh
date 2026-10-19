@@ -36,7 +36,11 @@ created_token_file=false
 if ! [[ -f "${token_file}" ]]; then
   created_token_file=true
   mkdir -p "$(dirname "${token_file}")"
-  echo "${QUAY_TOKEN}" | base64 -d >"${token_file}"
+  if [[ ${ACM_CATALOG_IMAGE} =~ ^quay\.io:443/ ]]; then
+    echo "${QUAY_TOKEN}" | base64 -d | sed "s/quay\.io/quay\.io:443/g" >"${token_file}"
+  else
+    echo "${QUAY_TOKEN}" | base64 -d >"${token_file}"
+  fi
 fi
 
 if ! skopeo inspect --raw --authfile "${token_file}" "docker://${ACM_CATALOG_IMAGE}:${ACM_CATALOG_TAG}" 1>/dev/null; then
