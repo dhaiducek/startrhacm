@@ -11,6 +11,8 @@ export ACM_CHANNEL
 printlog title "Configured with ACM_CATALOG_TAG=${ACM_CATALOG_TAG}"
 
 ocp_version=$(oc version -o json | jq -r '.openshiftVersion // ""') || ocp_version=""
+# Clean any trailing suffix
+ocp_version=${ocp_version%-*}
 if [[ -z "${ocp_version}" ]]; then
   printlog info "Warning: Failed to get OCP version from 'oc version' command."
 else
